@@ -20,14 +20,23 @@ module.exports = (robot) ->
   robot.statuspage ?= new StatusPage robot, process.env
   statuspage = robot.statuspage
 
-#   hubot status version - give the version of hubot-statuspage loaded
+#   hubot sp version - give the version of hubot-statuspage loaded
   robot.respond /sp version\s*$/, 'statuspage_version', (res) ->
     pkg = require path.join __dirname, '..', 'package.json'
     res.send "hubot-statuspage is version #{pkg.version}"
     res.finish()
 
-  robot.respond /sp(\s*)/,'status_incidents', (res) ->
-    statuspage.getIncidents
+#   hubot sp [inc] - give the ongoing incidents
+  robot.respond /sp(\s*)/, 'status_incidents', (res) ->
+    statuspage.getIncidents()
     .then (data) ->
-      for inc in data
-        res.send "[#{inc.id}] {#{inc.components.join(', ')}}"
+      if not data.length?
+        res.send 'all good'
+      else
+        for inc in data
+          if inc.impact_override ?
+            impact = inc.impact_override
+          else
+            impact = inc.impact
+          res.send "[#{inc.id}] {#{inc.components.join(', ')}} #{impact} - #{inc.status}"
+      

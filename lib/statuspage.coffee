@@ -42,7 +42,11 @@ class StatusPage
 
   request: (method, endpoint, query, from = false) ->
     return new Promise (res, err) ->
-      version = process.env.STATUSPAGE_API_VERSION? process.env.STATUSPAGE_API_VERSOIN : "v1/"
+      version = ''
+      if process.env.STATUSPAGE_API_VERSION?
+        version = process.env.STATUSPAGE_API_VERSION
+      else
+        version = 'v1/'
       if process.env.STATUSPAGE_API_KEY?
         auth = "OAuth #{process.env.STATUSPAGE_API_KEY}"
         body = JSON.stringify(query)
@@ -54,10 +58,10 @@ class StatusPage
           hostname: 'api.statuspage.io'
           port: 443
           method: method
-          path: version+endpoint
+          path: version + endpoint
           headers: {
-            Authorization: "#{auth}",
-            Accept: 'Content-Type': 'application/json'
+            Authorization: auth,
+            Accept: "'Content-Type': 'application/json'"
           }
         }
         if from?
@@ -67,6 +71,7 @@ class StatusPage
           response.on 'data', (chunk) ->
             data.push chunk
           response.on 'end', ->
+            console.log data
             if data.length > 0
               json_data = JSON.parse(data.join(''))
               if json_data.error?
@@ -84,12 +89,10 @@ class StatusPage
         err 'STATUSPAGE_API_KEY is not set in your environment.'
   getIncidents: (search = null, page_id = process.env.PAGERV2_PAGE_ID ) ->
     if search?
-      query = { q = search }
+      query = { q: search }
     else
-      query = {}
-    @request('GET',"/pages/#{page_id}/incidents.json",query)
-    .then (body) ->
-      body
+      query = { }
+    return @request('GET', "/pages/#{page_id}/incidents.json", query)
 
   coloring: {
     irc: (text, color) ->
@@ -105,44 +108,6 @@ class StatusPage
     generic: (text, color) ->
       text
   }
-
-   parseWebhook: (adapter, messages) ->
-    new Promise (res, err) =>
-      colors = {
-        trigger: 'red',
-        unacknowledge: 'red',
-        acknowledge: 'yellow',
-        resolve: 'green',
-        assign: 'blue',
-        escalate: 'blue'
-      }
-      res messages.map (message) =>
-        level = message.type.substring(message.type.indexOf('.') + 1)
-        if @coloring[adapter]?
-          colorer = @coloring[adapter]
-        else
-          colorer = @coloring.generic
-        origin = colorer(
-          "[#{message.data.incident.service.name}]",
-          colors[level]
-        )
-        if message.data.incident.trigger_summary_data?
-          if message.data.incident.trigger_summary_data.subject?
-            description = message.data.incident.trigger_summary_data.subject.
-                          replace(' (CRITICAL)', '')
-          else if message.data.incident.trigger_summary_data.description?
-            description = message.data.incident.trigger_summary_data.description
-        if not description?
-          description = '(no subject)'
-        who = if message.type is 'incident.resolve' and message.data.incident.resolved_by_user?
-                message.data.incident.resolved_by_user.name
-              else if message.data.incident.assigned_to_user?
-                message.data.incident.assigned_to_user.name
-              else
-                process.env.PAGERV2_DEFAULT_RESOLVER or 'nagios'
-        id = message.data.incident.id
-        number = message.data.incident.incident_number
-        "#{origin} #{id} - #{description} - #{level} (#{who})"
 
   colorer: (adapter, level, text) ->
     colors = {
