@@ -46,7 +46,7 @@ class StatusPage
       if process.env.STATUSPAGE_API_VERSION?
         version = process.env.STATUSPAGE_API_VERSION
       else
-        version = 'v1/'
+        version = '/v1'
       if process.env.STATUSPAGE_API_KEY?
         auth = "OAuth #{process.env.STATUSPAGE_API_KEY}"
         body = JSON.stringify(query)
@@ -87,7 +87,7 @@ class StatusPage
         req.end()
       else
         err 'STATUSPAGE_API_KEY is not set in your environment.'
-  getIncidents: (search = null, page_id = process.env.PAGERV2_PAGE_ID ) ->
+  getIncidents: (search = null, page_id = process.env.STATUSPAGE_PAGE_ID ) ->
     if search?
       query = { q: search }
     else

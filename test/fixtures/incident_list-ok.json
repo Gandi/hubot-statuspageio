@@ -1,0 +1,30 @@
+{ "data": [
+{
+"id": "ljk51ph6s12d",
+"components": [],
+"created_at": "2019-06-19T21:50:16Z",
+"impact": "critical",
+"impact_override": "minor",
+"incident_updates": [],
+"metadata": {},
+"monitoring_at": "2019-06-19T21:50:16Z",
+"name": "Data Layer Migration",
+"page_id": "string",
+"postmortem_body": "##### Issu At approximately 17:02 UTC on 2013-04-21, our master database server unexpectedly went unresponsive to all network A reboot of the machine at 17:05 UTC resulted in a failed mount of a corrupted EBS volume, and we made the decisio at that time to fail over the slave database ##### Resolutio At 17:12 UTC, the slave database had been successfully promoted to master and the application recovered enough t accept web traffic again. A new slave database node was created and placed into the rotation to guard against futur master failures. The promoted slave database performed slowly for the next couple of hours as the query cache bega to warm up, and eventually settled into a reasonable performance profile around 20:00 UTC ##### Future Mitigation Plan Over the past few months, we have been working on an overhaul to our data storage layer with a migration from a Postgre setup to a distributed, fault-tolerant, multi-region data layer using Riak. This initiative has been prioritized, an the migration will be performed in the coming weeks. We will notify our clients of the scheduled downtime via a incident on this status site, and via a blog post ",
+"postmortem_body_last_updated_at": "2019-06-19T21:50:16Z",
+"postmortem_ignored": true,
+"postmortem_notified_subscribers": true,
+"postmortem_notified_twitter": true,
+"postmortem_published_at": true,
+"resolved_at": "2019-06-19T21:50:16Z",
+"scheduled_auto_completed": true,
+"scheduled_auto_in_progress": true,
+"scheduled_for": "2019-06-19T21:50:16Z",
+"scheduled_remind_prior": true,
+"scheduled_reminded_at": "2019-06-19T21:50:16Z",
+"scheduled_until": "2019-06-19T21:50:16Z",
+"shortlink": "http://stspg.io/803310a12",
+"status": "scheduled",
+"updated_at": "2019-06-19T21:50:16Z"
+}
+]}
