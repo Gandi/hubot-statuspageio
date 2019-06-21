@@ -71,7 +71,6 @@ class StatusPage
           response.on 'data', (chunk) ->
             data.push chunk
           response.on 'end', ->
-            console.log data
             if data.length > 0
               json_data = JSON.parse(data.join(''))
               if json_data.error?

@@ -31,7 +31,7 @@ module.exports = (robot) ->
     statuspage.getIncidents()
     .then (data) ->
       if not data.length?
-        res.send 'all good'
+        res.send 'All good'
       else
         for inc in data
           if inc.impact_override ?
