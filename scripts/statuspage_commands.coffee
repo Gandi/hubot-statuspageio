@@ -27,25 +27,22 @@ module.exports = (robot) ->
     res.finish()
 
 #   hubot sp [inc] - give the ongoing incidents
-  robot.respond /sp(\s*)/, 'status_incidents', (res) ->
-    statuspage.getIncidents()
+  robot.respond /sp(\s*)$/, 'status_incidents', (res) ->
+    statuspage.getUnresolvedIncidents()
     .then (data) ->
-      if not data.length?
+      if not data.length? or data.length is 0
         res.send 'All good'
       else
         for inc in data
-          console.log inc
-          colored_id = statuspage.colorer(
-             robot.adapterName
-             inc.status
-             "[#{inc.id}]"
-            )
-          if inc.impact_override ?
-            impact = inc.impact_override
-          else
-            impact = inc.impact
-          affected_component=inc.components.map (c) ->
-            c.name
-          res.send "#{colored_id} {#{affected_component.join(', ')}} #{impact} : #{inc.name} - #{inc.status}"
+          res.send statuspage.printIncident(inc)
     .catch (e) ->
       res.send "Error : #{e}"
+    res.finish()
+  robot.respond /sp(?:\s*)(?:more(?:\s*)?)?([a-z0-9]*)/, 'status_details', (res) ->
+    [_, incident_id] = res.match
+    statuspage.getIncident(incident_id)
+    .then (data) ->
+      res.send statuspage.printIncident(inc, true)
+    .catch (e) ->
+      res.send "Error : #{e}"
+    res.finish()

@@ -74,6 +74,7 @@ class StatusPage
             if data.length > 0
               json_data = JSON.parse(data.join(''))
               if json_data.error?
+                console.log req
                 err "#{response.statusCode} #{json_data.error}"
               else
                 res json_data
@@ -90,8 +91,41 @@ class StatusPage
     if search?
       query = { q: search }
     else
-      query = { }
+      query = { q: { status: 'open' } }
     return @request('GET', "/pages/#{page_id}/incidents.json", query)
+
+  getUnresolvedIncidents: (search = null, page_id = process.env.STATUSPAGE_PAGE_ID ) ->
+    if search?
+      query = { q: search }
+    else
+      query = { q: { status: 'open' } }
+    return @request('GET', "/pages/#{page_id}/incidents/unresolved")
+
+  getIncident: (incident_id, page_id = process.env.STATUSPAGE_PAGE_ID ) ->
+    return @request('GET', "/pages/#{page_id}/incidents/#{incident_id}")
+
+  printIncident: (inc, full = false, adapterName = 'irc') ->
+    colored_id = @colorer(
+      adapterName
+      inc.status
+      "[#{inc.id}]"
+    )
+    if inc.impact_override ?
+      impact = inc.impact_override
+    else
+      impact = inc.impact
+      console.log(inc)
+      affected_component = inc.components.map (c) ->
+        c.name
+    result = "#{colored_id} {#{affected_component.join(', ')}} \
+#{impact} : #{inc.name} \
+- #{inc.status}"
+    if full
+      if inc.incident_updates.length > 0
+        update = inc.incident_updates[0]
+        formated_date = moment(update.updated_at).utc().format('ddd HH:mm')
+        result += "\n #{update.body} - #{formated_date}"
+    return result
 
   coloring: {
     irc: (text, color) ->
@@ -110,15 +144,14 @@ class StatusPage
 
   colorer: (adapter, level, text) ->
     colors = {
-      trigger: 'red',
-      triggered: 'red',
-      unacknowledge: 'red',
-      unacknowledged: 'red',
-      acknowledge: 'yellow',
-      acknowledged: 'yellow',
-      completed: 'green',
-      assign: 'blue',
-      escalate: 'blue'
+      investigated: 'red',
+      identified: 'orange',
+      monitoring: 'lightgreen',
+      resolved: 'green',
+      scheduled: 'teal',
+      inprogress: 'cyan',
+      verifying: 'aqua',
+      completed: 'royal'
     }
     if @coloring[adapter]?
       @coloring[adapter](text, colors[level])

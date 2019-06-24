@@ -16,7 +16,7 @@ room = null
 
 
 describe 'statuspage lib test', ->
-  hubotHear = (message,userName = 'koko', tempo = 42) ->
+  hubotHear = (message, userName = 'koko', tempo = 42) ->
     beforeEach (done) ->
       room.user.say userName, message
       setTimeout (done), tempo
@@ -24,7 +24,7 @@ describe 'statuspage lib test', ->
   hubotResponse = (i = 1) ->
     room.messages[i]?[1]
 
-  hubot = (message,userName = 'koko') ->
+  hubot = (message, userName = 'koko') ->
     hubotHear "@hubot #{message}", userName
 
   say = (command, cb) ->
@@ -40,7 +40,7 @@ describe 'statuspage lib test', ->
     room.robot.brain.userForId 'user', {
       name: 'user'
     }
-    a= nock('https://api.statuspage.io')
+    a = nock('https://api.statuspage.io')
     .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/incidents.json")
     .reply(200, require('./fixtures/incident_list-ok.json'))
   afterEach ->
