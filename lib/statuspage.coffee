@@ -74,7 +74,7 @@ class StatusPage
             if data.length > 0
               json_data = JSON.parse(data.join(''))
               if json_data.error?
-                err "#{json_data.error.code} #{json_data.error.message}"
+                err "#{response.statusCode} #{json_data.error}"
               else
                 res json_data
             else
@@ -116,8 +116,7 @@ class StatusPage
       unacknowledged: 'red',
       acknowledge: 'yellow',
       acknowledged: 'yellow',
-      resolve: 'green',
-      resolved: 'green',
+      completed: 'green',
       assign: 'blue',
       escalate: 'blue'
     }

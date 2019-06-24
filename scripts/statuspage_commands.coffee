@@ -34,9 +34,18 @@ module.exports = (robot) ->
         res.send 'All good'
       else
         for inc in data
+          console.log inc
+          colored_id = statuspage.colorer(
+             robot.adapterName
+             inc.status
+             "[#{inc.id}]"
+            )
           if inc.impact_override ?
             impact = inc.impact_override
           else
             impact = inc.impact
-          res.send "[#{inc.id}] {#{inc.components.join(', ')}} #{impact} - #{inc.status}"
-      
+          affected_component=inc.components.map (c) ->
+            c.name
+          res.send "#{colored_id} {#{affected_component.join(', ')}} #{impact} : #{inc.name} - #{inc.status}"
+    .catch (e) ->
+      res.send "Error : #{e}"
