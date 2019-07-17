@@ -64,35 +64,39 @@ module.exports = (robot) ->
 
   # hubot sp set <incident_id> <id|mon|res> [comment] - update a status to id(entified)|mon(itoring)|res(olved) with an optional comment
   robot.respond /sp(?:\s*) ?(?:set) ([a-z0-9]*) ([a-zA-Z]*) ?(.*)?$/, 'status_update', (res) ->
-    [_, incident_id, status,comment] = res.match
+    [_, incident_id, status, comment] = res.match
     if status.toUpperCase().indexOf('ID') >= 0
-      status = "identified"
+      status = 'identified'
     else if status.toUpperCase().indexOf('MON') >= 0
-      status = "monitoring"
+      status = 'monitoring'
     else if status.toUpperCase().indexOf('RES') >= 0
-      status = "resolved"
-    update = { incident : {} }
+      status = 'resolved'
+    update = {
+      incident: { }
+    }
     if status?
       update.incident.status = status
     if message?
       update.incident.message = message
     statuspage.updateIncident(incident_id, update)
     .then (data) ->
-       console.log data
-       res.send statuspage.printIncident(data, true)
+      console.log data
+      res.send statuspage.printIncident(data, true)
     .catch (e) ->
-       res.send "Error: #{e}"
+      res.send "Error: #{e}"
     res.finish()
 
   # hubot sp <incident_id> + comment - add a comment to an incident
   robot.respond /sp(?:\s*) ([a-z0-9]*) + (.*)$/, 'status_update', (res) ->
     [_, incident_id, comment] = res.match
-    update =
-      incident:
+    update = {
+      incident: {
         message: comment
-    statuspage.updateIncident(incident_id,update)
+      }
+    }
+    statuspage.updateIncident(incident_id, update)
     .then (data) ->
-      res.send statuspage.printIncident(data,true)
+      res.send statuspage.printIncident(data, true)
     .catch (e) ->
       res.send "Error: #{e}"
     res.finish()
@@ -100,25 +104,27 @@ module.exports = (robot) ->
   # hubot sp <incident_id> is <none,minor,major,critical> - set the impact of an incident
   robot.respond /sp(?:\s*) ([a-z0-9]*) is ([a-zA-Z]*)(?:\s*)$/, 'status_impact', (res) ->
     [_, incident_id, impact] = res.match
-    if impact.toUpperCase().indexOf('NO') >= 0
-      impact = "none"
-    else if impact.toUpperCase().indexOf('MIN') >= 0
-      impact = "minor"
+    if impact.toUpperCase().indexOf('MIN') >= 0
+      impact = 'minor'
     else if impact.toUpperCase().indexOf('MAJ') >= 0
-      impact = "major"
+      impact = 'major'
+    else if impact.toUpperCase().indexOf('NO') >= 0
+      impact = 'none'
     else if impact.toUpperCase().indexOf('CRIT') >= 0
-      impact = "critical"
+      impact = 'critical'
     else
       res.send "unknown impact #{impact}"
       res.finish()
       return
-    update =
-      incident:
+    update = {
+      incident: {
         impact: impact
         impact_override: impact
-    statuspage.updateIncident(incident_id,update)
+      }
+    }
+    statuspage.updateIncident(incident_id, update)
     .then (data) ->
-       res.send statuspage.printIncident(data,true)
+      res.send statuspage.printIncident(data, true)
     .catch (e) ->
-       res.send "Error: #{e}"
+      res.send "Error: #{e}"
     res.finish()

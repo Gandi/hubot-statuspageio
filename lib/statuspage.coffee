@@ -95,6 +95,9 @@ class StatusPage
       query = { q: { status: 'open' } }
     return @request('GET', "/pages/#{page_id}/incidents.json", query)
 
+  getComponent: (search, page_id = process.env.STATUSPAGE_PAGE_ID ) ->
+    return @request('GET', "/pages/#{page_id}/components.json", search)
+
   getUnresolvedIncidents: (search = null, page_id = process.env.STATUSPAGE_PAGE_ID ) ->
     if search?
       query = { q: search }
@@ -111,10 +114,7 @@ class StatusPage
   updateIncident: (incident_id, update, page_id = process.env.STATUSPAGE_PAGE_ID) ->
     return @request('PUT', "/pages/#{page_id}/incidents/#{incident_id}.json", update)
 
-
   printIncident: (inc, full = false, adapterName = 'irc') ->
-    @adapterName=adapterName
-    console.log inc
     colored_id = @colorer(
       adapterName
       inc.status
@@ -126,9 +126,8 @@ class StatusPage
       impact
       impact
     )
-    affected_component
     affected_component = inc.components.map (c) =>
-      @colorer(adapterName,c.status,c.name)
+      @colorer(adapterName, c.status, c.name)
     result = "[#{colored_id} - #{colored_impact}] {#{affected_component.join(', ')}} : #{inc.name} \
 - #{inc.status}"
     if full
@@ -155,7 +154,7 @@ class StatusPage
 
   colorer: (adapter, level, text) ->
     console.log level
-    colors =
+    colors = {
       investigated: 'red'
       identified: 'yellow'
       monitoring: 'lightgreen'
@@ -168,6 +167,7 @@ class StatusPage
       major: 'red'
       critical: 'brown'
       degraded_performance: 'yellow'
+    }
     if @coloring[adapter]?
       @coloring[adapter](text, colors[level])
     else
