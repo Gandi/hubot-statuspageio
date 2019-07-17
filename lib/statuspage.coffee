@@ -74,7 +74,7 @@ class StatusPage
             if data.length > 0
               json_data = JSON.parse(data.join(''))
               if json_data.error?
-                console.log req
+                console.log req.method, req.path
                 err "#{response.statusCode} #{json_data.error}"
               else
                 res json_data
@@ -84,6 +84,7 @@ class StatusPage
           err "#{error.code} #{error.message}"
         if method is 'PUT' or method is 'POST'
           req.write body
+          console.log body
         req.end()
       else
         err 'STATUSPAGE_API_KEY is not set in your environment.'
@@ -104,21 +105,31 @@ class StatusPage
   getIncident: (incident_id, page_id = process.env.STATUSPAGE_PAGE_ID ) ->
     return @request('GET', "/pages/#{page_id}/incidents/#{incident_id}")
 
+  getActiveMaintenance: (page_id = process.env.STATUSPAGE_PAGE_ID) ->
+    return @request('GET', "/pages/#{page_id}/incidents/active_maintenance")
+
+  updateIncident: (incident_id, update, page_id = process.env.STATUSPAGE_PAGE_ID) ->
+    return @request('PUT', "/pages/#{page_id}/incidents/#{incident_id}.json", update)
+
+
   printIncident: (inc, full = false, adapterName = 'irc') ->
+    @adapterName=adapterName
+    console.log inc
     colored_id = @colorer(
       adapterName
       inc.status
-      "[#{inc.id}]"
+      "#{inc.id}"
     )
-    if inc.impact_override ?
-      impact = inc.impact_override
-    else
-      impact = inc.impact
-      console.log(inc)
-      affected_component = inc.components.map (c) ->
-        c.name
-    result = "#{colored_id} {#{affected_component.join(', ')}} \
-#{impact} : #{inc.name} \
+    impact = inc.impact
+    colored_impact = @colorer(
+      adapterName
+      impact
+      impact
+    )
+    affected_component
+    affected_component = inc.components.map (c) =>
+      @colorer(adapterName,c.status,c.name)
+    result = "[#{colored_id} - #{colored_impact}] {#{affected_component.join(', ')}} : #{inc.name} \
 - #{inc.status}"
     if full
       if inc.incident_updates.length > 0
@@ -143,16 +154,20 @@ class StatusPage
   }
 
   colorer: (adapter, level, text) ->
-    colors = {
-      investigated: 'red',
-      identified: 'orange',
-      monitoring: 'lightgreen',
-      resolved: 'green',
-      scheduled: 'teal',
-      inprogress: 'cyan',
-      verifying: 'aqua',
+    console.log level
+    colors =
+      investigated: 'red'
+      identified: 'yellow'
+      monitoring: 'lightgreen'
+      resolved: 'green'
+      scheduled: 'teal'
+      inprogress: 'cyan'
+      verifying: 'aqua'
       completed: 'royal'
-    }
+      minor: 'lightgreen'
+      major: 'red'
+      critical: 'brown'
+      degraded_performance: 'yellow'
     if @coloring[adapter]?
       @coloring[adapter](text, colors[level])
     else
