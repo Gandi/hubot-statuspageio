@@ -13,7 +13,7 @@
 StatusPage = require '../lib/statuspage'
 moment = require 'moment'
 path = require 'path'
-
+Promise = require 'bluebird'
 module.exports = (robot) ->
 
   robot.brain.data.statuspage ?= { users: { } }
@@ -39,15 +39,34 @@ module.exports = (robot) ->
       res.send "Error : #{e}"
     res.finish()
 
-#   hubot sp [more] <incident_id> - give the details about an incident
-  robot.respond /sp(?:\s*)(?:more(?:\s*)?)?([a-z0-9]*)$/, 'status_details', (res) ->
-    [_, incident_id] = res.match
-    statuspage.getIncident(incident_id)
-    .then (data) ->
-      res.send statuspage.printIncident(inc, true)
+  # hubto sp new <template_name> for <duration> [on component:status,component:status]
+  robot.respond /sp(?:\s*) (?:new|create) (.*) on (.*)?$/, 'status_create', (res) ->
+    [_, name, components] = res.match
+    components_list = components.split(',')
+    components_obj = Promise.map components_list, (comp) ->
+      comp_list = comp.split(':')
+      statuspage.getComponentByName(comp_list[0])
+      .then (data) ->
+        if data.id?
+          result = { }
+          result[data.id] = comp_list[1]
+          return result
+        else if data.length > 0
+          result = { }
+          for c in data
+            result[c.id] = comp_list[1]
+          return result
+        else
+          throw new Error("unknown component #{comp_list[0]}")
+    components_obj.then (data) ->
+      comp = { }
+      for d in data
+        Object.assign(comp, d)
+      statuspage.createIncidentFromTemplate(name, comp)
+      .then (data) ->
+        res.send statuspage.printIncident(data)
     .catch (e) ->
-      res.send "Error : #{e}"
-    res.finish()
+      res.send e
 
 #   hubot sp main[tenance] - give the ongoing maintenance
   robot.respond /sp(?:\s*) main(tenance)?/, 'status_maintenance', (res) ->
@@ -60,9 +79,11 @@ module.exports = (robot) ->
           res.send statuspage.printIncident(inc)
     .catch (e) ->
       res.send "Error : #{e}"
-    res.finish()
+    r
+    es.finish()
 
-  # hubot sp set <incident_id> <id|mon|res> [comment] - update a status to id(entified)|mon(itoring)|res(olved) with an optional comment
+  # hubot sp set <incident_id> <id|mon|res> [comment]
+  # update a status to id(entified)|mon(itoring)|res(olved) with an optional comment
   robot.respond /sp(?:\s*) ?(?:set) ([a-z0-9]*) ([a-zA-Z]*) ?(.*)?$/, 'status_update', (res) ->
     [_, incident_id, status, comment] = res.match
     if status.toUpperCase().indexOf('ID') >= 0
@@ -127,4 +148,50 @@ module.exports = (robot) ->
       res.send statuspage.printIncident(data, true)
     .catch (e) ->
       res.send "Error: #{e}"
+    res.finish()
+
+  # hubot sp c[omp] [comp_name] - get a component or list them all
+  robot.respond /sp(?:\s*) co(?:mp)? ?(.*)?$/, 'status_component', (res) ->
+    [_, component] = res.match
+    if component?
+      statuspage.getComponentByName(component)
+      .then (data) ->
+        if data.length? > 0
+          for comp in data
+            res.send statuspage.printComponent(comp, true)
+        else
+          res.send statuspage.printComponent(data, true)
+      .catch (e) ->
+        res.send "Error: #{e}"
+    else
+      statuspage.getComponents()
+      .then (data) ->
+        for comp in data
+          res.send statuspage.printComponent(comp)
+      .catch (e) ->
+        res.send "Error: #{e}"
+    res.finish()
+  # hubot sp <incident_id> + comment - add a comment to an incident
+  robot.respond /sp(?:\s*) ([a-z0-9]*) + (.*)$/, 'status_update', (res) ->
+    [_, incident_id, comment] = res.match
+    update = {
+      incident: {
+        message: comment
+      }
+    }
+    statuspage.updateIncident(incident_id, update)
+    .then (data) ->
+      res.send statuspage.printIncident(data, true)
+    .catch (e) ->
+      res.send "Error: #{e}"
+    res.finish()
+
+#   hubot sp inc <incident_id> - give the details about an incident
+  robot.respond /sp(?:\s*)(?:inc(?:\s*)?)?([a-z0-9]*)$/, 'status_details', (res) ->
+    [_, incident_id] = res.match
+    statuspage.getIncident(incident_id)
+    .then (inc) ->
+      res.send statuspage.printIncident(inc, true)
+    .catch (e) ->
+      res.send "Error : #{e}"
     res.finish()

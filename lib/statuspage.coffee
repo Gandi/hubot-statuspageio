@@ -21,7 +21,7 @@ class StatusPage
   constructor: (@robot) ->
     @robot.brain.data.statuspage ?= {
       users: { },
-      services: { }
+      components: { }
     }
     @logger = @robot.logger
     @logger.debug 'Statuspage Loaded'
@@ -88,6 +88,49 @@ class StatusPage
         req.end()
       else
         err 'STATUSPAGE_API_KEY is not set in your environment.'
+
+  getTemplateByName: (name, page_id = process.env.STATUSPAGE_PAGE_ID) ->
+    return new Promise (res, err) =>
+      @getTemplates()
+      .then (data) ->
+        result = []
+        for template in data
+          if template.name.toUpperCase().indexOf(name.toUpperCase()) >= 0
+            result.push(template)
+        if result.length is 1
+          res result[0]
+        else if result.length is 0
+          err 'no matching template found'
+        else
+          err 'too many matching name'
+          @logger.debug result
+      .catch (e) ->
+        err e
+
+  getTemplates: (page_id = process.env.STATUSPAGE_PAGE_ID) ->
+    return @request('GET', "/pages/#{page_id}/incident_templates")
+
+  getComponentByName: (name, page_id = process.env.STATUSPAGE_PAGE_ID) ->
+    return new Promise (res, err) =>
+      if @robot.brain.data.statuspage.components[name]?
+        id = @robot.brain.data.statuspage.components[name]
+        @getComponent(id)
+          .then (data) ->
+            res data
+          .catch (e) ->
+            err e
+      else
+        @getComponents()
+        .then (data) =>
+          for comp in data
+            @robot.brain.data.statuspage.components[comp.name] = comp.id
+            if name = comp.name
+              result = comp
+          if result?
+            res data
+        .catch (e) ->
+          err e
+
   getIncidents: (search = null, page_id = process.env.STATUSPAGE_PAGE_ID ) ->
     if search?
       query = { q: search }
@@ -95,8 +138,21 @@ class StatusPage
       query = { q: { status: 'open' } }
     return @request('GET', "/pages/#{page_id}/incidents.json", query)
 
-  getComponent: (search, page_id = process.env.STATUSPAGE_PAGE_ID ) ->
-    return @request('GET', "/pages/#{page_id}/components.json", search)
+  getComponents: (page_id = process.env.STATUSPAGE_PAGE_ID) ->
+    return @request('GET', "/pages/#{page_id}/components")
+
+  getComponent: (component_id, page_id = process.env.STATUSPAGE_PAGE_ID) ->
+    return new Promise (res, err) =>
+      @request('GET', "/pages/#{page_id}/components/#{component_id}")
+      .then (data) =>
+        if data.components?.length > 0
+          sub_components = Promise.map data.components, (comp) =>
+            @getComponent(comp, page_id)
+          res Promise.all sub_components
+        else
+          res @request('GET', "/pages/#{page_id}/components/#{component_id}")
+      .catch (e) ->
+        err e
 
   getUnresolvedIncidents: (search = null, page_id = process.env.STATUSPAGE_PAGE_ID ) ->
     if search?
@@ -114,12 +170,38 @@ class StatusPage
   updateIncident: (incident_id, update, page_id = process.env.STATUSPAGE_PAGE_ID) ->
     return @request('PUT', "/pages/#{page_id}/incidents/#{incident_id}.json", update)
 
+  createIncidentFromTemplate: (template, components, page_id = process.env.STATUSPAGE_PAGE_ID) ->
+    return new Promise (res, err) =>
+      @getTemplateByName(template, page_id)
+      .then (template_data) =>
+        template_data.components = components
+        template_data.components_id = Object.keys(components)
+        incident = { incident: template_data }
+        @createIncident(incident, page_id)
+        .then (data) ->
+          res data
+        .catch (e) ->
+          err e
+    
+  createIncident: (incident, page_id = process.env.STATUSPAGE_PAGE_ID) ->
+    return @request('POST', "/pages/#{page_id}/incidents", incident)
+
+  printComponent: (comp, full = false, adapterName = 'irc') ->
+    colored_status = @colorer(
+      adapterName
+      comp.status
+      comp.status
+    )
+    desc = if full? and comp.description? then " #{comp.description}" else ''
+    return "[#{colored_status}] #{comp.name}#{desc}"
+
   printIncident: (inc, full = false, adapterName = 'irc') ->
     colored_id = @colorer(
       adapterName
       inc.status
-      "#{inc.id}"
+      inc.id
     )
+    @logger.debug inc
     impact = inc.impact
     colored_impact = @colorer(
       adapterName
@@ -153,12 +235,12 @@ class StatusPage
   }
 
   colorer: (adapter, level, text) ->
-    console.log level
     colors = {
       investigated: 'red'
       identified: 'yellow'
       monitoring: 'lightgreen'
       resolved: 'green'
+      operational: 'green'
       scheduled: 'teal'
       inprogress: 'cyan'
       verifying: 'aqua'
