@@ -7,9 +7,21 @@
 #
 # Commands:
 #
+#   hubot sp version - give the version of hubot-statuspage loaded
+#
+#   hubot sp [inc] - give the ongoing incidents
+#   hubot sp inc <incident_id> - give the details about an incident
+#   hubot sp main[tenance] - give the ongoing maintenance
+#   hubot sp c[omp] [comp_name] - get a component or list them all
+#
+#   hubot sp new <template_name> for <duration> [on component:status,component:status]
+#
+#   hubot sp set <incident_id> <id|mon|res> [comment] update a status
+#   hubot sp <incident_id> is <none,minor,major,critical> - set the impact of an inciden
+#   hubot sp <incident_id> + comment - add a comment to an incident
+#
 # Author:
 #   kolo
-
 StatusPage = require '../lib/statuspage'
 moment = require 'moment'
 path = require 'path'
@@ -39,7 +51,7 @@ module.exports = (robot) ->
       res.send "Error : #{e}"
     res.finish()
 
-  # hubto sp new <template_name> for <duration> [on component:status,component:status]
+# hubot sp new <template_name> for <duration> [on component:status,component:status]
   robot.respond /sp(?:\s*) (?:new|create) (.*) on (.*)?$/, 'status_create', (res) ->
     [_, name, components] = res.match
     components_list = components.split(',')
@@ -82,8 +94,7 @@ module.exports = (robot) ->
     r
     es.finish()
 
-  # hubot sp set <incident_id> <id|mon|res> [comment]
-  # update a status to id(entified)|mon(itoring)|res(olved) with an optional comment
+  # hubot sp set <incident_id> <id|mon|res> [comment] update a status
   robot.respond /sp(?:\s*) ?(?:set) ([a-z0-9]*) ([a-zA-Z]*) ?(.*)?$/, 'status_update', (res) ->
     [_, incident_id, status, comment] = res.match
     if status.toUpperCase().indexOf('ID') >= 0
@@ -150,6 +161,7 @@ module.exports = (robot) ->
       res.send "Error: #{e}"
     res.finish()
 
+
   # hubot sp c[omp] [comp_name] - get a component or list them all
   robot.respond /sp(?:\s*) co(?:mp)? ?(.*)?$/, 'status_component', (res) ->
     [_, component] = res.match
@@ -171,6 +183,7 @@ module.exports = (robot) ->
       .catch (e) ->
         res.send "Error: #{e}"
     res.finish()
+
   # hubot sp <incident_id> + comment - add a comment to an incident
   robot.respond /sp(?:\s*) ([a-z0-9]*) + (.*)$/, 'status_update', (res) ->
     [_, incident_id, comment] = res.match
