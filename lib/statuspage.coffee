@@ -28,37 +28,22 @@ class StatusPage
     if process.env.STATUSPAGE_LOG_PATH?
       @errorlog = path.join process.env.STATUSPAGE_LOG_PATH, 'statuspage-error.log'
 
-  getPermission: (user, group) =>
-    return new Promise (res, err) =>
-      isAuthorized = @robot.auth?.hasRole(user, [group, 'statusadmin']) or
-                     @robot.auth?.isAdmin(user)
-      if process.env.STATUSPAGE_NEED_GROUP_AUTH? and
-         process.env.STATUSPAGE_NEED_GROUP_AUTH isnt '0' and
-         @robot.auth? and
-         not(isAuthorized)
-        err "You don't have permission to do that."
-      else
-        res()
-
   request: (method, endpoint, query, from = false) ->
     return new Promise (res, err) ->
       version = ''
-      if process.env.STATUSPAGE_API_VERSION?
-        version = process.env.STATUSPAGE_API_VERSION
+      if process.env.STATUSPAGE_PAGE_ID?
+        page = "/pages/#{process.env.STATUSPAGE_PAGE_ID}"
       else
-        version = '/v1'
+        err 'STATUSPAGE_PAGE_ID is not set in your environment.'
+      version = '/v1'
       if process.env.STATUSPAGE_API_KEY?
         auth = "OAuth #{process.env.STATUSPAGE_API_KEY}"
         body = JSON.stringify(query)
-        if method is 'GET'
-          qs = querystring.stringify(query)
-          if qs isnt ''
-            endpoint += "?#{qs}"
         options = {
           hostname: 'api.statuspage.io'
           port: 443
           method: method
-          path: version + endpoint
+          path: version + page + endpoint
           headers: {
             Authorization: auth,
             Accept: "'Content-Type': 'application/json'"
@@ -71,25 +56,20 @@ class StatusPage
           response.on 'data', (chunk) ->
             data.push chunk
           response.on 'end', ->
-            if data.length > 0
-              json_data = JSON.parse(data.join(''))
-              if json_data.error?
-                console.log req.method, req.path
-                err "#{response.statusCode} #{json_data.error}"
-              else
-                res json_data
+            json_data = JSON.parse(data.join(''))
+            if json_data.error?
+              err "#{response.statusCode} #{json_data.error}"
             else
-              res { }
+              res json_data
         req.on 'error', (error) ->
           err "#{error.code} #{error.message}"
         if method is 'PUT' or method is 'POST'
           req.write body
-          console.log body
         req.end()
       else
         err 'STATUSPAGE_API_KEY is not set in your environment.'
 
-  getTemplateByName: (name, page_id = process.env.STATUSPAGE_PAGE_ID) ->
+  getTemplateByName: (name) ->
     return new Promise (res, err) =>
       @getTemplates()
       .then (data) ->
@@ -103,88 +83,80 @@ class StatusPage
           err 'no matching template found'
         else
           err 'too many matching name'
-          @logger.debug result
       .catch (e) ->
         err e
 
-  getTemplates: (page_id = process.env.STATUSPAGE_PAGE_ID) ->
-    return @request('GET', "/pages/#{page_id}/incident_templates")
+  getTemplates: ->
+    return @request('GET', '/incident_templates')
 
-  getComponentByName: (name, page_id = process.env.STATUSPAGE_PAGE_ID) ->
+  getComponentByName: (name, recurcive = true) ->
     return new Promise (res, err) =>
       if @robot.brain.data.statuspage.components[name]?
         id = @robot.brain.data.statuspage.components[name]
-        @getComponent(id)
-          .then (data) ->
-            res data
-          .catch (e) ->
-            err e
+        @getComponent(id, recurcive)
+        .then (data) ->
+          res data
       else
         @getComponents()
         .then (data) =>
           for comp in data
             @robot.brain.data.statuspage.components[comp.name] = comp.id
-            if name = comp.name
+            if name is comp.name
               result = comp
-          if result?
-            res data
+              @getComponent(comp.id, recurcive)
+              .then (data) ->
+                res data
+          if not result?
+            res { }
         .catch (e) ->
           err e
 
-  getIncidents: (search = null, page_id = process.env.STATUSPAGE_PAGE_ID ) ->
-    if search?
-      query = { q: search }
-    else
-      query = { q: { status: 'open' } }
-    return @request('GET', "/pages/#{page_id}/incidents.json", query)
 
-  getComponents: (page_id = process.env.STATUSPAGE_PAGE_ID) ->
-    return @request('GET', "/pages/#{page_id}/components")
+  getComponents: ->
+    return @request('GET', '/components')
 
-  getComponent: (component_id, page_id = process.env.STATUSPAGE_PAGE_ID) ->
+  getComponent: (component_id, recurcive = true) ->
     return new Promise (res, err) =>
-      @request('GET', "/pages/#{page_id}/components/#{component_id}")
+      @request('GET', "/components/#{component_id}")
       .then (data) =>
-        if data.components?.length > 0
+        if data.components?.length > 0 and recurcive
           sub_components = Promise.map data.components, (comp) =>
-            @getComponent(comp, page_id)
-          res Promise.all sub_components
+            @getComponent(comp)
+          Promise.all sub_components
+          .then (data) ->
+            res data
         else
-          res @request('GET', "/pages/#{page_id}/components/#{component_id}")
+          res data
       .catch (e) ->
         err e
 
-  getUnresolvedIncidents: (search = null, page_id = process.env.STATUSPAGE_PAGE_ID ) ->
-    if search?
-      query = { q: search }
-    else
-      query = { q: { status: 'open' } }
-    return @request('GET', "/pages/#{page_id}/incidents/unresolved")
+  getUnresolvedIncidents: (search = null ) ->
+    return @request('GET', '/incidents/unresolved')
 
-  getIncident: (incident_id, page_id = process.env.STATUSPAGE_PAGE_ID ) ->
-    return @request('GET', "/pages/#{page_id}/incidents/#{incident_id}")
+  getIncident: (incident_id) ->
+    return @request('GET', "/incidents/#{incident_id}")
 
-  getActiveMaintenance: (page_id = process.env.STATUSPAGE_PAGE_ID) ->
-    return @request('GET', "/pages/#{page_id}/incidents/active_maintenance")
+  getActiveMaintenance: ->
+    return @request('GET', '/incidents/active_maintenance')
 
-  updateIncident: (incident_id, update, page_id = process.env.STATUSPAGE_PAGE_ID) ->
-    return @request('PUT', "/pages/#{page_id}/incidents/#{incident_id}.json", update)
+  updateIncident: (incident_id, update) ->
+    return @request('PUT', "/incidents/#{incident_id}.json", update)
 
-  createIncidentFromTemplate: (template, components, page_id = process.env.STATUSPAGE_PAGE_ID) ->
+  createIncidentFromTemplate: (template, components) ->
     return new Promise (res, err) =>
-      @getTemplateByName(template, page_id)
+      @getTemplateByName(template)
       .then (template_data) =>
         template_data.components = components
-        template_data.components_id = Object.keys(components)
+        template_data.component_ids = Object.keys(components)
         incident = { incident: template_data }
-        @createIncident(incident, page_id)
+        @createIncident(incident)
         .then (data) ->
           res data
-        .catch (e) ->
-          err e
+      .catch (e) ->
+        err e
     
-  createIncident: (incident, page_id = process.env.STATUSPAGE_PAGE_ID) ->
-    return @request('POST', "/pages/#{page_id}/incidents", incident)
+  createIncident: (incident) ->
+    return @request('POST', '/incidents', incident)
 
   printComponent: (comp, full = false, adapterName = 'irc') ->
     colored_status = @colorer(
@@ -192,7 +164,7 @@ class StatusPage
       comp.status
       comp.status
     )
-    desc = if full? and comp.description? then " #{comp.description}" else ''
+    desc = if full and comp.description? then " #{comp.description}" else ''
     return "[#{colored_status}] #{comp.name}#{desc}"
 
   printIncident: (inc, full = false, adapterName = 'irc') ->
@@ -227,9 +199,6 @@ class StatusPage
       else
         text
 
-    slack: (text, color) ->
-      "*#{text}*"
-
     generic: (text, color) ->
       text
   }
@@ -254,12 +223,6 @@ class StatusPage
       @coloring[adapter](text, colors[level])
     else
       @coloring.generic(text, colors[level])
- 
-  logError: (message, payload) ->
-    if @errorlog?
-      fs.appendFileSync @errorlog, '\n---------------------\n'
-      fs.appendFileSync @errorlog, "#{moment().utc().format()} - #{message}\n\n"
-      fs.appendFileSync @errorlog, JSON.stringify(payload, null, 2), 'utf-8'
 
 
 

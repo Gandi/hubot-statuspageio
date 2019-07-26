@@ -1,0 +1,21 @@
+[
+{
+"id": "sv3vlf40dfzp",
+"name": "stemplatename",
+"title": "templatetitle",
+"body": "template body",
+"group_id": "13nc3tpps3hx",
+"update_status": "investigating",
+"should_tweet": true,
+"should_send_notifications": true
+},{
+"id": "sv3vlf40dfzp",
+"name": "truc",
+"title": "templatetitle",
+"body": "template body",
+"group_id": "13nc3tpps3hx",
+"update_status": "investigating",
+"should_tweet": true,
+"should_send_notifications": true
+}
+]
