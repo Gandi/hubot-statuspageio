@@ -6,8 +6,9 @@ This plugin is based on the usage we have in Gandi of StatusPage.io. It may, in 
 Configuration
 ---------------
 
-    # STATUS_API_KEY v2 configuration vars
-    export STATUS_API_KEY=""
+    # STATUSPAGE_API_KEY v2 configuration vars
+    export STATUSPAGE_API_KEY=""
+    export STATUSPAGE_PAGE_ID=""
 
 Usage
 --------
