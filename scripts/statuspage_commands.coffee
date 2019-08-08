@@ -30,6 +30,7 @@ module.exports = (robot) ->
 
   robot.brain.data.statuspage ?= { users: { } }
   robot.statuspage ?= new StatusPage robot, process.env
+  statusAnnounceRoom = process.env.STATUSPAGE_ANNOUNCE_ROOM
   statuspage = robot.statuspage
 
 #   hubot sp version - give the version of hubot-statuspage loaded
@@ -50,11 +51,24 @@ module.exports = (robot) ->
     .catch (e) ->
       res.send "Error: #{e}"
     res.finish()
+  
+
+  robot.on 'status_create', (payload) ->
+    statuspage.createIncidentFromTemplate(payload.name, payload.components)
+    .then (data) ->
+      robot.messageRoom statusAnnounceRoom,
+      statuspage.printIncident(data, false, robot.adapterName)
+    .catch (e) ->
+      robot.messageRoom statusAnnounceRoom, "Error: #{e}"
 
 # hubot sp new <template_name> for <duration> [on component:status,component:status]
-  robot.respond /sp(?:\s*) (?:new|create) (.*) on (.*)?$/, 'status_create', (res) ->
-    [_, name, components] = res.match
-    components_list = components.split(',')
+  robot.respond /sp(?:\s*) (?:new|create) (.*) on (.*)?$/, (res) ->
+    [_, name_value, components_value] = res.match
+    payload = {
+      name: name_value
+      components: components_value
+    }
+    components_list = payload.components.split(',')
     Promise.map components_list, (comp) ->
       comp_list = comp.split(':')
       statuspage.getComponentByName(comp_list[0], false)
@@ -65,17 +79,14 @@ module.exports = (robot) ->
           return result
         else
           throw new Error("unknown component #{comp_list[0]}")
-    .then (data) ->
+    .then (data) =>
       comp = { }
       for d in data
         Object.assign(comp, d)
-      statuspage.createIncidentFromTemplate(name, comp)
-      .then (data) ->
-        res.send statuspage.printIncident(data, false, robot.adapterName)
-      .catch (e) ->
-        res.send "Error: #{e}"
+      payload.components = comp
+      @robot.emit 'status_create', payload
     .catch (e) ->
-      res.send "Error: #{e.message}"
+      res.send "#{e}"
 
 #   hubot sp main[tenance] - give the ongoing maintenance
   robot.respond /sp(?:\s*) main(tenance)?/, 'status_maintenance', (res) ->

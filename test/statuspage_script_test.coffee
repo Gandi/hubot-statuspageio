@@ -35,6 +35,7 @@ describe 'statuspage script test', ->
     process.env.STATUSPAGE_API_KEY = 'xxx'
     process.env.STATUSPAGE_PAGE_ID = 'xxx'
     process.env.STATUSPAGE_LOG_PATH = 'statuspage.log'
+    process.env.STATUSPAGE_ANNOUNCE_ROOM = 'console'
     room = helper.createRoom()
     room.robot.adapterName = 'console'
     room.robot.brain.userForId 'user', {
@@ -45,6 +46,7 @@ describe 'statuspage script test', ->
     delete process.env.STATUSPAGE_PAGE_ID
     room.destroy()
 
+#------------------------------------------------------------------------------
   context 'the environment is not setup', ->
     context 'the api key is not setup', ->
       beforeEach ->
@@ -66,6 +68,7 @@ describe 'statuspage script test', ->
     it 'should give the version number', ->
       expect(hubotResponse()).to.match /hubot-statuspage is version [0-9]+\.[0-9]+\.[0-9]+/
 
+#------------------------------------------------------------------------------
   context 'list all current incident for a given page', ->
     context 'when there is no incident', ->
       beforeEach ->
@@ -84,6 +87,9 @@ describe 'statuspage script test', ->
         it 'replies with the incident list', ->
           expect(hubotResponse()).to.eql '[ljk51ph6s12d - critical] {}' +
           ' : Data Layer Migration - scheduled'
+
+#----
+
     context 'when there is something wrong', ->
       beforeEach ->
         a = nock('https://api.statuspage.io')
@@ -96,7 +102,8 @@ describe 'statuspage script test', ->
       say 'sp', ->
         it 'replies with the error message', ->
           expect(hubotResponse()).to.match /Error: (.*)/
- 
+
+#------------------------------------------------------------------------------
   context 'list all current maintenance for a given page', ->
     context 'when there is no maintenance', ->
       beforeEach ->
@@ -115,6 +122,9 @@ describe 'statuspage script test', ->
         it 'replies with the maintenance list', ->
           expect(hubotResponse()).to.eql '[ljk51ph6s12d - critical] {}' +
           ' : Data Layer Migration - scheduled'
+
+#----
+
     context 'when there is something wrong', ->
       beforeEach ->
         a = nock('https://api.statuspage.io')
@@ -124,7 +134,7 @@ describe 'statuspage script test', ->
         it 'replies with the error message', ->
           expect(hubotResponse()).to.eql 'Error: 404 Incident not found'
  
- 
+#------------------------------------------------------------------------------
   context 'changing the state of an incident', ->
     context 'when everything goes right', ->
       beforeEach ->
@@ -146,6 +156,9 @@ describe 'statuspage script test', ->
           expect(hubotResponse()).to.eql '[1y9p5smwzhyf - critical] {component1}' +
           ' : Data Layer Migration - scheduled\n' +
           ' update details - Wed 07:51'
+
+#----
+
     context 'when something is wrong', ->
       beforeEach ->
         a = nock('https://api.statuspage.io')
@@ -155,8 +168,7 @@ describe 'statuspage script test', ->
         it 'replies with the error message', ->
           expect(hubotResponse()).to.match  /Error: 404 Incident not found/
  
- 
- 
+#------------------------------------------------------------------------------
   context 'adding a comment to an incident', ->
     context 'when everything goes right', ->
       beforeEach ->
@@ -169,6 +181,9 @@ describe 'statuspage script test', ->
           expect(hubotResponse()).to.eql '[1y9p5smwzhyf - critical] {component1}' +
           ' : Data Layer Migration - scheduled\n' +
           ' update details - Wed 07:51'
+ 
+#----
+
     context 'when something is wrong', ->
       beforeEach ->
         a = nock('https://api.statuspage.io')
@@ -178,7 +193,7 @@ describe 'statuspage script test', ->
         it 'replies with the error message', ->
           expect(hubotResponse()).to.match  /Error: 404 Incident not found/
   
- 
+#------------------------------------------------------------------------------
   context 'changing the impact of an incident', ->
     context 'when everything goes right', ->
       beforeEach ->
@@ -206,6 +221,9 @@ describe 'statuspage script test', ->
           expect(hubotResponse()).to.eql '[1y9p5smwzhyf - critical] {component1}' +
           ' : Data Layer Migration - scheduled\n' +
           ' update details - Wed 07:51'
+
+#----
+
     context 'when something is wrong', ->
       beforeEach ->
         a = nock('https://api.statuspage.io')
@@ -217,7 +235,8 @@ describe 'statuspage script test', ->
       say 'sp 3 is none', ->
         it 'replies with the error message', ->
           expect(hubotResponse()).to.match  /Error: 404 Incident not found/
- 
+
+ #-----------------------------------------------------------------------------
   context 'list all component', ->
     beforeEach ->
       room.robot.brain.data = {
@@ -244,6 +263,7 @@ describe 'statuspage script test', ->
       say 'sp co component2', ->
         it 'replies with nested component', ->
           expect(hubotResponse()).to.eql '[operational] component1 component description'
+   
     context 'when the component id is known', ->
       beforeEach ->
         room.robot.brain.data = {
@@ -268,7 +288,9 @@ describe 'statuspage script test', ->
       say 'sp co', ->
         it 'replies with the component list', ->
           expect(hubotResponse()).to.eql '[operational] component1'
- 
+
+#----
+
     context 'when there is something wrong with the components', ->
       beforeEach ->
         a = nock('https://api.statuspage.io')
@@ -280,6 +302,8 @@ describe 'statuspage script test', ->
       say 'sp co co', ->
         it 'replies with the error message', ->
           expect(hubotResponse()).to.eql 'Error: 404 Incident not found'
+
+#------------------------------------------------------------------------------
   context 'create a new incident', ->
     beforeEach ->
       room.robot.brain.data = {
@@ -324,6 +348,8 @@ describe 'statuspage script test', ->
           expect(hubotResponse()).to.eql '[yyyyyyyyyyy - critical] {component2}' +
           ' : Data Layer Migration - scheduled'
 
+#----
+
     context 'when the component is wrong', ->
       beforeEach ->
         a = nock('https://api.statuspage.io')
@@ -365,7 +391,7 @@ describe 'statuspage script test', ->
         it 'it replies with the error', ->
           expect(hubotResponse()).to.eql 'Error: too many matching name'
 
-    context 'when there is something wrongaaaaaaaaaaaaaaaaaaa', ->
+    context 'when there is something wrong server side', ->
       beforeEach ->
         a = nock('https://api.statuspage.io')
         .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components")
@@ -381,6 +407,8 @@ describe 'statuspage script test', ->
         it 'replies with the error message', ->
           expect(hubotResponse()).to.eql 'Error: 404 Incident not found'
  
+
+#------------------------------------------------------------------------------
   context 'give details about an incident', ->
     context 'when there is an incident', ->
       beforeEach ->
@@ -392,6 +420,8 @@ describe 'statuspage script test', ->
           expect(hubotResponse()).to.eql '[yyyyyyyyyyy - critical] {component1}'+
           ' : Data Layer Migration - scheduled\n' +
           ' update details - Wed 07:51'
+#----
+
     context 'when something is wrong', ->
       beforeEach ->
         a = nock('https://api.statuspage.io')
