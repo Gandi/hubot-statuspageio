@@ -14,7 +14,7 @@
 #   hubot sp main[tenance] - give the ongoing maintenance
 #   hubot sp c[omp] [comp_name] - get a component or list them all
 #
-#   hubot sp new <template_name> for <duration> [on component:status,component:status]
+#   hubot sp new <template_name> on <component:status,component:status...> - create new status using template_name on component(s)
 #
 #   hubot sp set <incident_id> <id|mon|res> [comment] update a status
 #   hubot sp <incident_id> is <none,minor,major,critical> - set the impact of an inciden
