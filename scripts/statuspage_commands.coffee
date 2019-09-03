@@ -61,7 +61,7 @@ module.exports = (robot) ->
     .catch (e) ->
       robot.messageRoom statusAnnounceRoom, "Error: #{e}"
 
-# hubot sp new <template_name> for <duration> [on component:status,component:status]
+# hubot sp new <template_name> on <component:status,component:status...>
   robot.respond /sp(?:\s*) (?:new|create) (.*) on (.*)?$/, (res) ->
     [_, name_value, components_value] = res.match
     payload = {
