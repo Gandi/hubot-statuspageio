@@ -1,5 +1,8 @@
 Hubot-statuspage Changelog
 ==========================
+### 1.0.2 - 2019-09-04
+- fix another documentation
+
 ### 1.0.1 - 2019-09-04
 - fix documentation for new status
 
