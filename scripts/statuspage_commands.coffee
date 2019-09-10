@@ -73,20 +73,24 @@ module.exports = (robot) ->
       comp_list = comp.split(':')
       statuspage.getComponentByName(comp_list[0], false)
       .then (data) ->
-        if data.id?
-          result = { }
-          result[data.id] = comp_list[1]
-          return result
-        else
+        if not data?
           throw new Error("unknown component #{comp_list[0]}")
+        else if data.length? and data.length is 1
+          comp = data[0]
+          if comp.id?
+            result = { }
+            result[comp.id] = comp_list[1]
+            return result
+        else
+          throw new Error('too many matching components')
+      .catch (e) ->
+        res.send "#{e}"
     .then (data) =>
       comp = { }
       for d in data
         Object.assign(comp, d)
       payload.components = comp
       @robot.emit 'status_create', payload
-    .catch (e) ->
-      res.send "#{e}"
 
 #   hubot sp main[tenance] - give the ongoing maintenance
   robot.respond /sp(?:\s*) main(tenance)?/, 'status_maintenance', (res) ->
@@ -168,17 +172,18 @@ module.exports = (robot) ->
     res.finish()
 
 
-  # hubot sp c[omp] [comp_name] - get a component or list them all
+  # hubot sp c[omp] [comp_name] - get a component and his nested component or list them all
   robot.respond /sp(?:\s*) co(?:mp)? ?(.*)?$/, 'status_component', (res) ->
     [_, component] = res.match
     if component?
       statuspage.getComponentByName(component)
       .then (data) ->
-        if data.length? > 0
+        if data?.length?
           for comp in data
-            res.send statuspage.printComponent(comp, true, robot.adapterName)
+            if comp?
+              res.send statuspage.printComponent(comp, true, robot.adapterName)
         else
-          res.send statuspage.printComponent(data, true, robot.adapterName)
+          res.send 'No component found'
       .catch (e) ->
         res.send "Error: #{e}"
     else
@@ -186,6 +191,8 @@ module.exports = (robot) ->
       .then (data) ->
         for comp in data
           res.send statuspage.printComponent(comp, false, robot.adapterName)
+        if data? or data.length is 0
+          res.send 'No component found'
       .catch (e) ->
         res.send "Error: #{e}"
     res.finish()

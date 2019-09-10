@@ -19,10 +19,9 @@ querystring = require 'querystring'
 class StatusPage
 
   constructor: (@robot) ->
-    @robot.brain.data.statuspage ?= {
-      users: { },
-      components: { }
-    }
+    @robot.brain.data.statuspage ?= { }
+    @robot.brain.data.users ?= { }
+    @robot.brain.data.components ?= { }
     @logger = @robot.logger
     @logger.debug 'Statuspage Loaded'
     if process.env.STATUSPAGE_LOG_PATH?
@@ -70,7 +69,7 @@ class StatusPage
         err 'STATUSPAGE_API_KEY is not set in your environment.'
 
   getTemplateByName: (name) ->
-    return new Promise (res, err) =>
+    new Promise (res, err) =>
       @getTemplates()
       .then (data) ->
         result = []
@@ -82,53 +81,49 @@ class StatusPage
         else if result.length is 0
           err 'no matching template found'
         else
-          err 'too many matching name'
+          err 'too many matching templates'
       .catch (e) ->
         err e
 
   getTemplates: ->
     return @request('GET', '/incident_templates')
 
-  getComponentByName: (name, recurcive = true) ->
-    return new Promise (res, err) =>
-      if @robot.brain.data.statuspage.components[name]?
-        id = @robot.brain.data.statuspage.components[name]
-        @getComponent(id, recurcive)
-        .then (data) ->
-          res data
-      else
-        @getComponents()
-        .then (data) =>
-          for comp in data
+  getComponentByName: (name, recursive = true) ->
+    if @robot.brain.data.statuspage.components[name]?
+      id = @robot.brain.data.statuspage.components[name]
+      Promise.all [@getComponent(id)]
+    else
+      @getComponents()
+      .then (data) =>
+        matched_comps = data.filter (comp) ->
+          comp.name.toUpperCase().indexOf(name.toUpperCase()) >= 0
+        if matched_comps.length is 1
+          if recursive
+            comp = matched_comps[0]
             @robot.brain.data.statuspage.components[comp.name] = comp.id
-            if name is comp.name
-              result = comp
-              @getComponent(comp.id, recurcive)
-              .then (data) ->
-                res data
-          if not result?
-            res { }
-        .catch (e) ->
-          err e
-
+            Promise.all @getComponentRecursive(comp.id)
+          else
+            Promise.resolve(matched_comps)
+        else if matched_comps.length > 1
+          sub_components = matched_comps.map (comp) =>
+            @robot.brain.data.statuspage.components[comp.name] = comp.id
+            @getComponent(comp.id)
+          Promise.all sub_components
 
   getComponents: ->
     return @request('GET', '/components')
 
-  getComponent: (component_id, recurcive = true) ->
-    return new Promise (res, err) =>
-      @request('GET', "/components/#{component_id}")
-      .then (data) =>
-        if data.components?.length > 0 and recurcive
-          sub_components = Promise.map data.components, (comp) =>
-            @getComponent(comp)
-          Promise.all sub_components
-          .then (data) ->
-            res data
-        else
-          res data
-      .catch (e) ->
-        err e
+  getComponentRecursive: (comp_id) ->
+    @request('GET', "/components/#{comp_id}")
+    .then (data) =>
+      result = [ Promise.resolve(data) ]
+      for comp in data.components
+        result.push @getComponent(comp)
+      return result
+
+
+  getComponent: (component_id) ->
+    @request('GET', "/components/#{component_id}")
 
   getUnresolvedIncidents: (search = null ) ->
     return @request('GET', '/incidents/unresolved')
@@ -152,6 +147,7 @@ class StatusPage
         @createIncident(incident)
         .then (data) ->
           res data
+
       .catch (e) ->
         err e
     
@@ -159,13 +155,17 @@ class StatusPage
     return @request('POST', '/incidents', incident)
 
   printComponent: (comp, full = false, adapterName = 'irc') ->
-    colored_status = @colorer(
-      adapterName
-      comp.status
-      comp.status
-    )
+    if comp.status?
+      status = @colorer(
+        adapterName
+        comp.status
+        "[#{comp.status}]"
+      )
+    else
+      status = ''
     desc = if full and comp.description? then " #{comp.description}" else ''
-    return "[#{colored_status}] #{comp.name}#{desc}"
+    id = if full then " - #{comp.id}" else ''
+    return "#{status} #{comp.name}#{desc}#{id}"
 
   printIncident: (inc, full = false, adapterName = 'irc') ->
     colored_id = @colorer(

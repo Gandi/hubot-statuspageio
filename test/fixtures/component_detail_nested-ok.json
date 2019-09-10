@@ -8,7 +8,6 @@
 "name": "component2",
 "description": "string",
 "position": 0,
-"status": "operational",
 "showcase": true,
 "only_show_if_degraded": true,
 "automation_email": "string",

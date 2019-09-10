@@ -1,14 +1,13 @@
 {
   "name": "hubot-statuspageio",
   "description": "A hubot plugin for statuspage.io api.",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": {
     "name": "kolo",
     "email": "baptiste@mouterde.fr",
     "url": "https://github.com/baptistem"
   },
-  "contributors": [
-  ],
+  "contributors": [],
   "license": "MIT",
   "keywords": [
     "hubot",

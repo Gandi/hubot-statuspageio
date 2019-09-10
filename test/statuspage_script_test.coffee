@@ -259,26 +259,26 @@ describe 'statuspage script test', ->
         .reply(200, require('./fixtures/component_detail_3-ok.json'))
       say 'sp co component1', ->
         it 'replies with the details of the component', ->
-          expect(hubotResponse()).to.eql '[operational] component1 component description'
+          expect(hubotResponse()).to.eql '[operational] component1 component description - 1'
       say 'sp co component2', ->
         it 'replies with nested component', ->
-          expect(hubotResponse()).to.eql '[operational] component1 component description'
+          expect(hubotResponse()).to.eql ' component2 string - 2'
    
     context 'when the component id is known', ->
       beforeEach ->
         room.robot.brain.data = {
           'statuspage': {
             'components': {
-              'name': 'id'
+              'component1': 'id'
             }
           }
         }
         a = nock('https://api.statuspage.io')
         .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/id")
         .reply(200, require('./fixtures/component_detail_1-ok.json'))
-      say 'sp co name', ->
+      say 'sp co component1', ->
         it 'replies with the component info', ->
-          expect(hubotResponse()).to.eql '[operational] component1 component description'
+          expect(hubotResponse()).to.eql '[operational] component1 component description - 1'
           
     context 'when there is no component given', ->
       beforeEach ->
@@ -289,9 +289,10 @@ describe 'statuspage script test', ->
         it 'replies with the component list', ->
           expect(hubotResponse()).to.eql '[operational] component1'
 
+
 #----
 
-    context 'when there is something wrong with the components', ->
+    context 'when there is something wrong with the server', ->
       beforeEach ->
         a = nock('https://api.statuspage.io')
         a.get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components")
@@ -302,6 +303,20 @@ describe 'statuspage script test', ->
       say 'sp co co', ->
         it 'replies with the error message', ->
           expect(hubotResponse()).to.eql 'Error: 404 Incident not found'
+
+    context 'when there is no components', ->
+      beforeEach ->
+        a = nock('https://api.statuspage.io')
+        a.get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components")
+        .reply(404, require('./fixtures/component_list-empty.json'))
+      say 'sp co', ->
+        it 'replies with the error message', ->
+          expect(hubotResponse()).to.eql 'No component found'
+      say 'sp co co', ->
+        it 'replies with the error message', ->
+          expect(hubotResponse()).to.eql 'No component found'
+
+
 
 #------------------------------------------------------------------------------
   context 'create a new incident', ->
@@ -371,7 +386,7 @@ describe 'statuspage script test', ->
         .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/3")
         .reply(200, require('./fixtures/component_detail_3-ok.json'))
  
-      say 'sp new wrongtemplate on component1:critical', ->
+      say 'sp new wrongtemplate on component11:critical', ->
         it 'it replies with the error', ->
           expect(hubotResponse()).to.eql 'Error: no matching template found'
  
@@ -386,10 +401,17 @@ describe 'statuspage script test', ->
         .reply(200, require('./fixtures/component_detail_1-ok.json'))
         .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/3")
         .reply(200, require('./fixtures/component_detail_3-ok.json'))
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components")
+        .reply(200, require('./fixtures/component_list-ok.json'))
  
+      say 'sp new t on component11:critical', ->
+        it 'it replies with the error', ->
+          expect(hubotResponse()).to.eql 'Error: too many matching templates'
+
       say 'sp new t on component1:critical', ->
         it 'it replies with the error', ->
-          expect(hubotResponse()).to.eql 'Error: too many matching name'
+          expect(hubotResponse()).to.eql 'Error: too many matching components'
+
 
     context 'when there is something wrong server side', ->
       beforeEach ->
@@ -403,7 +425,7 @@ describe 'statuspage script test', ->
         .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/incident_templates")
         .reply(404, require('./fixtures/incident_ko.json'))
 
-      say 'sp new templatename on component1:critical', ->
+      say 'sp new templatename on component11:critical', ->
         it 'replies with the error message', ->
           expect(hubotResponse()).to.eql 'Error: 404 Incident not found'
  
