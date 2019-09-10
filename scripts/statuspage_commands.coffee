@@ -191,7 +191,8 @@ module.exports = (robot) ->
       .then (data) ->
         for comp in data
           res.send statuspage.printComponent(comp, false, robot.adapterName)
-        if data? or data.length is 0
+        if not data? or data.length is 0
+          console.log data
           res.send 'No component found'
       .catch (e) ->
         res.send "Error: #{e}"
