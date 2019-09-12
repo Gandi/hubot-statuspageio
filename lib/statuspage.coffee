@@ -91,7 +91,7 @@ class StatusPage
   getComponentByName: (name, recursive = true) ->
     if @robot.brain.data.statuspage.components[name]?
       id = @robot.brain.data.statuspage.components[name]
-      Promise.all [@getComponent(id)]
+      Promise.all @getComponentRecursive(id)
     else
       @getComponents()
       .then (data) =>
@@ -117,8 +117,9 @@ class StatusPage
     @request('GET', "/components/#{comp_id}")
     .then (data) =>
       result = [ Promise.resolve(data) ]
-      for comp in data.components
-        result.push @getComponent(comp)
+      if data.components?
+        for comp in data.components
+          result.push @getComponent(comp)
       return result
 
 

@@ -1,5 +1,8 @@
 Hubot-statuspage Changelog
 ==========================
+### 1.0.4 - 2019-09-12
+- fix incorect single component handling and relevant unit test
+
 ### 1.0.3 - 2019-09-04
 - improve component listing, add component id and unit test
 
