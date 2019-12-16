@@ -9,9 +9,25 @@ Configuration
     # STATUSPAGE_API_KEY v2 configuration vars
     export STATUSPAGE_API_KEY=""
     export STATUSPAGE_PAGE_ID=""
+    export STATUSPAGE_ANNOUNCE_ROOM=""
+    export STATUSPAGE_ENDPOINT=""
 
 Usage
 --------
+```
+sp <incident_id> + comment - add a comment to an incident
+sp <incident_id> is <none,minor,major,critical> - set the impact of an inciden
+sp [inc] - give the ongoing incidents
+sp c[omp] [comp_name] - get a component or list them all
+sp inc <incident_id> - give the details about an incident
+sp main[tenance] - give the ongoing maintenance
+sp new <template_name> on <component:status,component:status...> - create new status using template_name on component(s)
+sp set <incident_id> <id|mon|res> [comment] update a status
+sp version - give the version of hubot-statuspage loaded
+version - displays the version of this bot
+what role does <user> have - Find out what roles are assigned to a specific user
+```
+
 
 
 Development

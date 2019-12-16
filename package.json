@@ -1,7 +1,7 @@
 {
   "name": "hubot-statuspageio",
   "description": "A hubot plugin for statuspage.io api.",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "author": {
     "name": "kolo",
     "email": "baptiste@mouterde.fr",
