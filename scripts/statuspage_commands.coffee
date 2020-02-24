@@ -49,7 +49,7 @@ module.exports = (robot) ->
         for inc in data
           res.send statuspage.printIncident(inc, false, robot.adapterName)
     .catch (e) ->
-      res.send "Error: #{e}"
+      res.send "#{e}"
     res.finish()
   
 
@@ -59,7 +59,7 @@ module.exports = (robot) ->
       robot.messageRoom statusAnnounceRoom,
       statuspage.printIncident(data, false, robot.adapterName)
     .catch (e) ->
-      robot.messageRoom statusAnnounceRoom, "Error: #{e}"
+      robot.messageRoom statusAnnounceRoom, "#{e}"
 
 # hubot sp new <template_name> on <component:status,component:status...>
   robot.respond /sp(?:\s*) (?:new|create) (.*) on (.*)?$/, (res) ->
@@ -71,18 +71,11 @@ module.exports = (robot) ->
     components_list = payload.components.split(',')
     Promise.map components_list, (comp) ->
       comp_list = comp.split(':')
-      statuspage.getComponentByName(comp_list[0], false)
+      statuspage.getComponentByName(comp_list[0])
       .then (data) ->
-        if not data?
-          throw new Error("unknown component #{comp_list[0]}")
-        else if data.length? and data.length is 1
-          comp = data[0]
-          if comp.id?
-            result = { }
-            result[comp.id] = comp_list[1]
-            return result
-        else
-          throw new Error('too many matching components')
+        result = { }
+        result[data.id] = comp_list[1]
+        return result
       .catch (e) ->
         res.send "#{e}"
     .then (data) =>
@@ -91,6 +84,8 @@ module.exports = (robot) ->
         Object.assign(comp, d)
       payload.components = comp
       @robot.emit 'status_create', payload
+    .catch (e) ->
+      res.send "#{e}"
 
 #   hubot sp main[tenance] - give the ongoing maintenance
   robot.respond /sp(?:\s*) main(tenance)?/, 'status_maintenance', (res) ->
@@ -102,7 +97,7 @@ module.exports = (robot) ->
         for inc in data
           res.send statuspage.printIncident(inc, false, robot.adapterName)
     .catch (e) ->
-      res.send "Error: #{e}"
+      res.send "#{e}"
     res.finish()
 
   # hubot sp set <incident_id> <id|mon|res> [comment] update a status
@@ -121,11 +116,15 @@ module.exports = (robot) ->
       update.incident.status = status
     if comment?
       update.incident.message = comment
-    statuspage.updateIncident(incident_id, update)
+    update.incident.auto_transition_to_operational_state = true
+    statuspage.getIncident(incident_id)
     .then (data) ->
-      res.send statuspage.printIncident(data, true, robot.adapterName)
+      update.incident.components_id = data.components.map (comp) -> comp.id
+      statuspage.updateIncident(incident_id, update)
+      .then (data) ->
+        res.send statuspage.printIncident(data, true, robot.adapterName)
     .catch (e) ->
-      res.send "Error: #{e}"
+      res.send "#{e}"
     res.finish()
 
   # hubot sp <incident_id> + comment - add a comment to an incident
@@ -140,7 +139,7 @@ module.exports = (robot) ->
     .then (data) ->
       res.send statuspage.printIncident(data, true, robot.adapterName)
     .catch (e) ->
-      res.send "Error: #{e}"
+      res.send "#{e}"
     res.finish()
 
   # hubot sp <incident_id> is <none,minor,major,critical> - set the impact of an incident
@@ -168,24 +167,73 @@ module.exports = (robot) ->
     .then (data) ->
       res.send statuspage.printIncident(data, true, robot.adapterName)
     .catch (e) ->
-      res.send "Error: #{e}"
+      res.send "#{e}"
     res.finish()
 
+  # hubot sp t[emplates] [template_name] - list all available template, filtered by templatename
+  robot.respond /sp(?:\s*) t(?:emplate)? ?(.*)?$/, 'status_component', (res) ->
+    [_, name] = res.match
+    if name?
+      statuspage.getTemplatesByName(name)
+      .then (found_templates) ->
+        for found_template in found_templates
+          if found_template?
+            res.send statuspage.printTemplate(found_template, true)
+      .catch (e) ->
+        res.send "#{e}"
+    else
+      statuspage.getTemplates()
+      .then (found_templates) ->
+        if not found_templates? or found_templates.length is 0
+          res.send 'Error: no template found'
+        else
+          for found_template in found_templates
+            res.send statuspage.printTemplate(found_template, false)
+      .catch (e) ->
+        res.send "#{e}"
+    res.finish()
+
+  # hubot sp co?m?p? <comp_name> is <op|deg|part|maj|main|> - change the status of a component
+  robot.respond '/sp(?:\s*) co(?:mp)? (.*) is (op(?:e(?:rational)?)?|deg(?:raded)?'+
+  '|part(?:ial outage)?|maj(?:or outage)?|main(?:tenance)?)/i', (res) ->
+    [_, components_string, status] = res.match
+    if status.toUpperCase().indexOf('OP') >= 0
+      status = 'operational'
+    else if status.toUpperCase().indexOf('DEG') >= 0
+      status = 'degraded'
+    else if status.toUpperCase().indexOf('PART') >= 0
+      status = 'partial_outage'
+    else if status.toUpperCase().indexOf('MAJ') >= 0
+      status = 'major_outage'
+    else if status.toUpperCase().indexOf('MAIN') >= 0
+      status = 'maintenance'
+    components = components_string.split(',')
+    component_ids = components.map (component) ->
+      statuspage.getComponentByName(component,false)
+    Promise.all(component_ids)
+    .then (data) ->
+      update = { status: status }
+      updates = []
+      for component in data
+        updates.push statuspage.updateComponent(component.id, update)
+      Promise.all(updates)
+      .then () ->
+        res.send "Update sent"
+    .catch (e) ->
+      res.send "Unable to update #{e}"
+      res.finish()
+    res.finish()
 
   # hubot sp c[omp] [comp_name] - get a component and his nested component or list them all
   robot.respond /sp(?:\s*) co(?:mp)? ?(.*)?$/, 'status_component', (res) ->
     [_, component] = res.match
     if component?
-      statuspage.getComponentByName(component)
+      statuspage.getComponentsByName(component)
       .then (data) ->
-        if data?.length?
-          for comp in data
-            if comp?
-              res.send statuspage.printComponent(comp, true, robot.adapterName)
-        else
-          res.send 'No component found'
+        for comp in data
+          res.send statuspage.printComponent(comp, true, robot.adapterName)
       .catch (e) ->
-        res.send "Error: #{e}"
+        res.send "#{e}"
     else
       statuspage.getComponents()
       .then (data) ->
@@ -194,7 +242,7 @@ module.exports = (robot) ->
         if not data? or data.length is 0
           res.send 'No component found'
       .catch (e) ->
-        res.send "Error: #{e}"
+        res.send "#{e}"
     res.finish()
 
 #   hubot sp inc <incident_id> - give the details about an incident
@@ -204,5 +252,5 @@ module.exports = (robot) ->
     .then (inc) ->
       res.send statuspage.printIncident(inc, true, robot.adapterName)
     .catch (e) ->
-      res.send "Error: #{e}"
+      res.send "#{e}"
     res.finish()

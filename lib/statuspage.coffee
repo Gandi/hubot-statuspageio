@@ -33,7 +33,7 @@ class StatusPage
       if process.env.STATUSPAGE_PAGE_ID?
         page = "/pages/#{process.env.STATUSPAGE_PAGE_ID}"
       else
-        err 'STATUSPAGE_PAGE_ID is not set in your environment.'
+        err 'Error: STATUSPAGE_PAGE_ID is not set in your environment.'
       version = '/v1'
       if process.env.STATUSPAGE_API_KEY?
         auth = "OAuth #{process.env.STATUSPAGE_API_KEY}"
@@ -55,18 +55,21 @@ class StatusPage
           response.on 'data', (chunk) ->
             data.push chunk
           response.on 'end', ->
-            json_data = JSON.parse(data.join(''))
-            if json_data.error?
-              err "#{response.statusCode} #{json_data.error}"
-            else
-              res json_data
+            try
+              json_data = JSON.parse(data.join(''))
+              if json_data.error?
+                err "Error: #{response.statusCode} #{json_data.error}"
+              else
+                res json_data
+            catch e
+              err e
         req.on 'error', (error) ->
           err "#{error.code} #{error.message}"
         if method is 'PUT' or method is 'POST'
           req.write body
         req.end()
       else
-        err 'STATUSPAGE_API_KEY is not set in your environment.'
+        err 'Error: STATUSPAGE_API_KEY is not set in your environment.'
   parseWebhook: (message, adapter) ->
     new Promise (res, err) =>
       @robot.logger.debug message
@@ -83,7 +86,7 @@ class StatusPage
         @robot.logger.error e
         err e
 
-  getTemplateByName: (name) ->
+  getTemplatesByName: (name) ->
     new Promise (res, err) =>
       @getTemplates()
       .then (data) ->
@@ -91,31 +94,42 @@ class StatusPage
         for template in data
           if template.name.toUpperCase().indexOf(name.toUpperCase()) >= 0
             result.push(template)
-        if result.length is 1
-          res result[0]
-        else if result.length is 0
-          err 'no matching template found'
+        if result.length is 0
+          err 'Error: no matching template found'
         else
-          err 'too many matching templates'
+          res result
       .catch (e) ->
         err e
+
 
   getTemplates: ->
     return @request('GET', '/incident_templates')
 
-  getComponentByName: (name, recursive = true) ->
+
+  getComponentByName: (name) ->
+    @getComponentsByName(name,false)
+    .then (data) ->
+      if data.length == 1
+        return data[0]
+      if data.length > 1
+        throw new Error('too many matching components')
+
+  getComponentsByName: (name, recursive = true) ->
     if @robot.brain.data.statuspage.components[name]?
       id = @robot.brain.data.statuspage.components[name]
-      Promise.all @getComponentRecursive(id)
+      if recursive
+        Promise.all @getComponentRecursive(id)
+      else
+        @getComponent(id)
     else
       @getComponents()
       .then (data) =>
-        matched_comps = data.filter (comp) ->
+        matched_comps = data.filter (comp) =>
+          @robot.brain.data.statuspage.components[comp.name] = comp.id
           comp.name.toUpperCase().indexOf(name.toUpperCase()) >= 0
         if matched_comps.length is 1
           if recursive
             comp = matched_comps[0]
-            @robot.brain.data.statuspage.components[comp.name] = comp.id
             Promise.all @getComponentRecursive(comp.id)
           else
             Promise.resolve(matched_comps)
@@ -124,9 +138,11 @@ class StatusPage
             @robot.brain.data.statuspage.components[comp.name] = comp.id
             @getComponent(comp.id)
           Promise.all sub_components
+        else
+          throw new Error("unknown component #{name}")
 
   getComponents: ->
-    return @request('GET', '/components')
+    @request('GET', '/components')
 
   getComponentRecursive: (comp_id) ->
     @request('GET', "/components/#{comp_id}")
@@ -153,13 +169,20 @@ class StatusPage
   updateIncident: (incident_id, update) ->
     return @request('PUT', "/incidents/#{incident_id}.json", update)
 
+  updateComponent: (component_id, update) ->
+    @request('PUT', "/components/#{component_id}", update)
+
   createIncidentFromTemplate: (template, components) ->
     return new Promise (res, err) =>
-      @getTemplateByName(template)
+      @getTemplatesByName(template)
       .then (template_data) =>
-        template_data.components = components
-        template_data.component_ids = Object.keys(components)
-        incident = { incident: template_data }
+        if template_data.length > 1
+          err 'Error: too many matching templates'
+          return
+        template = template_data[0]
+        template.components = components
+        template.component_ids = Object.keys(components)
+        incident = { incident: template }
         @createIncident(incident)
         .then (data) ->
           res data
@@ -169,6 +192,11 @@ class StatusPage
     
   createIncident: (incident) ->
     return @request('POST', '/incidents', incident)
+
+  printTemplate: (template, full) ->
+    if full
+      return "[#{template.name}] #{template.title} : #{template.body}"
+    return "[#{template.name}] #{template.title}"
 
   printComponent: (comp, full = false, adapterName = 'irc') ->
     name = if comp.name? then comp.name else 'unknown'
@@ -247,6 +275,8 @@ class StatusPage
       major: 'red'
       critical: 'brown'
       degraded_performance: 'yellow'
+      partial_outage: 'yellow'
+      major_outage: 'red'
     }
     if @coloring[adapter]?
       @coloring[adapter](text, colors[level])

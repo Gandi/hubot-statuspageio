@@ -44,10 +44,12 @@ describe 'statuspage script test', ->
   afterEach ->
     delete process.env.STATUSPAGE_API_KEY
     delete process.env.STATUSPAGE_PAGE_ID
+    room.robot.brain.statuspage = { }
     room.destroy()
+    nock.cleanAll()
 
 #------------------------------------------------------------------------------
-  context 'the environment is not setup', ->
+  describe 'the environment is not setup', ->
     context 'the api key is not setup', ->
       beforeEach ->
         delete process.env.STATUSPAGE_API_KEY
@@ -69,7 +71,7 @@ describe 'statuspage script test', ->
       expect(hubotResponse()).to.match /hubot-statuspage is version [0-9]+\.[0-9]+\.[0-9]+/
 
 #------------------------------------------------------------------------------
-  context 'list all current incident for a given page', ->
+  describe 'list all current incident for a given page', ->
     context 'when there is no incident', ->
       beforeEach ->
         a = nock('https://api.statuspage.io')
@@ -99,12 +101,16 @@ describe 'statuspage script test', ->
         it 'replies with the error message', ->
           expect(hubotResponse()).to.eql 'Error: 404 Incident not found'
     context 'when there is something wrong with the request', ->
+      beforeEach ->
+        a = nock('https://api.statuspage.io')
+        a.get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/incidents/unresolved")
+        .reply(404, require('./fixtures/incident_ko.json'))
       say 'sp', ->
         it 'replies with the error message', ->
           expect(hubotResponse()).to.match /Error: (.*)/
 
 #------------------------------------------------------------------------------
-  context 'list all current maintenance for a given page', ->
+  describe 'list all current maintenance for a given page', ->
     context 'when there is no maintenance', ->
       beforeEach ->
         a = nock('https://api.statuspage.io')
@@ -135,10 +141,12 @@ describe 'statuspage script test', ->
           expect(hubotResponse()).to.eql 'Error: 404 Incident not found'
  
 #------------------------------------------------------------------------------
-  context 'changing the state of an incident', ->
+  describe 'changing the state of an incident', ->
     context 'when everything goes right', ->
       beforeEach ->
         a = nock('https://api.statuspage.io')
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/incidents/2")
+        .reply(200, require('./fixtures/incident_update-ok.json'))
         .put("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/incidents/2.json")
         .reply(200, require('./fixtures/incident_update-ok.json'))
       say 'sp set 2 ID', ->
@@ -151,7 +159,7 @@ describe 'statuspage script test', ->
           expect(hubotResponse()).to.eql '[1y9p5smwzhyf - critical] {component1}' +
           ' : Data Layer Migration - scheduled\n' +
           ' update details - Wed 07:51'
-      say 'sp set 2 RES all good', ->
+      say 'sp set 2 RES', ->
         it 'replies with the update incident', ->
           expect(hubotResponse()).to.eql '[1y9p5smwzhyf - critical] {component1}' +
           ' : Data Layer Migration - scheduled\n' +
@@ -162,6 +170,8 @@ describe 'statuspage script test', ->
     context 'when something is wrong', ->
       beforeEach ->
         a = nock('https://api.statuspage.io')
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/incidents/1")
+        .reply(200, require('./fixtures/incident_update-ok.json'))
         .put("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/incidents/1.json")
         .reply(404, require('./fixtures/incident_ko.json'))
       say 'sp set 1 ID', ->
@@ -169,7 +179,7 @@ describe 'statuspage script test', ->
           expect(hubotResponse()).to.match  /Error: 404 Incident not found/
  
 #------------------------------------------------------------------------------
-  context 'adding a comment to an incident', ->
+  describe 'adding a comment to an incident', ->
     context 'when everything goes right', ->
       beforeEach ->
         a = nock('https://api.statuspage.io')
@@ -194,7 +204,7 @@ describe 'statuspage script test', ->
           expect(hubotResponse()).to.match  /Error: 404 Incident not found/
   
 #------------------------------------------------------------------------------
-  context 'changing the impact of an incident', ->
+  describe 'changing the impact of an incident', ->
     context 'when everything goes right', ->
       beforeEach ->
         a = nock('https://api.statuspage.io')
@@ -237,7 +247,7 @@ describe 'statuspage script test', ->
           expect(hubotResponse()).to.match  /Error: 404 Incident not found/
 
  #-----------------------------------------------------------------------------
-  context 'list all component', ->
+  describe 'list all component', ->
     beforeEach ->
       room.robot.brain.data = {
         'statuspage': {
@@ -314,12 +324,12 @@ describe 'statuspage script test', ->
           expect(hubotResponse()).to.eql 'No component found'
       say 'sp co co', ->
         it 'replies with the error message', ->
-          expect(hubotResponse()).to.eql 'No component found'
+          expect(hubotResponse()).to.eql 'Error: unknown component co'
 
 
 
 #------------------------------------------------------------------------------
-  context 'create a new incident', ->
+  describe 'create a new incident', ->
     beforeEach ->
       room.robot.brain.data = {
         'statuspage': {
@@ -381,12 +391,10 @@ describe 'statuspage script test', ->
         .reply(200, require('./fixtures/template_list-ok.json'))
         .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components")
         .reply(200, require('./fixtures/component_list-ok.json'))
-        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/1")
-        .reply(200, require('./fixtures/component_detail_1-ok.json'))
         .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/3")
         .reply(200, require('./fixtures/component_detail_3-ok.json'))
  
-      say 'sp new wrongtemplate on component11:critical', ->
+      say 'sp new wrongtemplate on component3:critical', ->
         it 'it replies with the error', ->
           expect(hubotResponse()).to.eql 'Error: no matching template found'
  
@@ -404,11 +412,22 @@ describe 'statuspage script test', ->
         .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components")
         .reply(200, require('./fixtures/component_list-ok.json'))
  
-      say 'sp new t on component11:critical', ->
+      say 'sp new t on component3:critical', ->
         it 'it replies with the error', ->
           expect(hubotResponse()).to.eql 'Error: too many matching templates'
 
-      say 'sp new t on component1:critical', ->
+    context 'when there is an error with component', ->
+      beforeEach ->
+        a = nock('https://api.statuspage.io')
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components")
+        .reply(200, require('./fixtures/component_list-ok.json'))
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/1")
+        .reply(200, require('./fixtures/component_detail_1-ok.json'))
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/2")
+        .reply(200, require('./fixtures/component_detail_nested-ok.json'))
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/3")
+        .reply(200, require('./fixtures/component_detail_3-ok.json'))
+      say 'sp new template on component:critical', ->
         it 'it replies with the error', ->
           expect(hubotResponse()).to.eql 'Error: too many matching components'
 
@@ -425,13 +444,13 @@ describe 'statuspage script test', ->
         .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/incident_templates")
         .reply(404, require('./fixtures/incident_ko.json'))
 
-      say 'sp new templatename on component11:critical', ->
+      say 'sp new templatename on component3:critical', ->
         it 'replies with the error message', ->
           expect(hubotResponse()).to.eql 'Error: 404 Incident not found'
  
 
 #------------------------------------------------------------------------------
-  context 'give details about an incident', ->
+  describe 'give details about an incident', ->
     context 'when there is an incident', ->
       beforeEach ->
         a = nock('https://api.statuspage.io')
@@ -452,3 +471,61 @@ describe 'statuspage script test', ->
       say 'sp inc 4', ->
         it 'replies with no incident', ->
           expect(hubotResponse()).to.eql 'Error: 404 Incident not found'
+
+
+#------------------------------------------------------------------------------
+  describe 'update the status of a component', ->
+    context 'when everything goes right', ->
+      beforeEach ->
+        room.robot.brain.data.statuspage = { }
+        room.robot.brain.data.statuspage.components = { }
+        a = nock('https://api.statuspage.io')
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components")
+        .reply(200, require('./fixtures/component_list-ok.json'))
+        .put("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/1")
+        .reply(200, require('./fixtures/component_detail_1-ok.json'))
+      say 'sp comp component1 is deg', ->
+        it 'replies with a confirmation', ->
+          expect(hubotResponse()).to.eql 'Update sent'
+      say 'sp comp component1 is op', ->
+        it 'replies with a confirmation', ->
+          expect(hubotResponse()).to.eql 'Update sent'
+      say 'sp comp component1 is part', ->
+        it 'replies with a confirmation', ->
+          expect(hubotResponse()).to.eql 'Update sent'
+      say 'sp comp component1 is maj', ->
+        it 'replies with a confirmation', ->
+          expect(hubotResponse()).to.eql 'Update sent'
+      say 'sp comp component1 is maintenance', ->
+        it 'replies with a confirmation', ->
+          expect(hubotResponse()).to.eql 'Update sent'
+#---
+    context 'when something goes wrong with a component', ->
+      beforeEach ->
+        room.robot.brain.data.statuspage = { }
+        room.robot.brain.data.statuspage.components = { }
+        a = nock('https://api.statuspage.io')
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components")
+        .reply(200, require('./fixtures/component_list-ok.json'))
+        .put("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/1")
+        .reply(200, require('./fixtures/component_detail_1-ok.json'))
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components")
+        .reply(200, require('./fixtures/component_list-ok.json'))
+      say 'sp comp component1,component5 is maintenance', ->
+        it 'replies with an accurate error', ->
+          expect(hubotResponse()).to.eql 'Unable to update Error: unknown component component5'
+    context 'when something goes wrong with the update', ->
+      beforeEach ->
+        room.robot.brain.data.statuspage = { }
+        room.robot.brain.data.statuspage.components = { }
+        a = nock('https://api.statuspage.io')
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components")
+        .reply(200, require('./fixtures/component_list-ok.json'))
+        .put("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/1")
+        .reply(500,'internal server error')
+      say 'sp comp component1 is maintenance', ->
+        it 'replies with an accurate error', ->
+          expect(hubotResponse()).to.eql 'Unable to update SyntaxError: Unexpected token i in JSON at position 0'
+
+
+
