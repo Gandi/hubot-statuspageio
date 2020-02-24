@@ -21,7 +21,7 @@ class StatusPage
   constructor: (@robot) ->
     @robot.brain.data.statuspage ?= { }
     @robot.brain.data.users ?= { }
-    @robot.brain.data.components ?= { }
+    @robot.brain.data.statuspage.components ?= { }
     @logger = @robot.logger
     @logger.debug 'Statuspage Loaded'
     if process.env.STATUSPAGE_LOG_PATH?
@@ -66,6 +66,7 @@ class StatusPage
         req.on 'error', (error) ->
           err "#{error.code} #{error.message}"
         if method is 'PUT' or method is 'POST'
+          console.log body
           req.write body
         req.end()
       else
@@ -107,9 +108,9 @@ class StatusPage
 
 
   getComponentByName: (name) ->
-    @getComponentsByName(name,false)
+    @getComponentsByName(name, false)
     .then (data) ->
-      if data.length == 1
+      if data.length is 1
         return data[0]
       if data.length > 1
         throw new Error('too many matching components')
@@ -120,7 +121,7 @@ class StatusPage
       if recursive
         Promise.all @getComponentRecursive(id)
       else
-        @getComponent(id)
+        Promise.resolve([@getComponent(id)])
     else
       @getComponents()
       .then (data) =>
@@ -269,6 +270,7 @@ class StatusPage
       operational: 'green'
       scheduled: 'teal'
       inprogress: 'cyan'
+      under_maintenance: 'cyan'
       verifying: 'aqua'
       completed: 'royal'
       minor: 'lightgreen'

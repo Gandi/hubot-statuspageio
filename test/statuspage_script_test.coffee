@@ -159,7 +159,7 @@ describe 'statuspage script test', ->
           expect(hubotResponse()).to.eql '[1y9p5smwzhyf - critical] {component1}' +
           ' : Data Layer Migration - scheduled\n' +
           ' update details - Wed 07:51'
-      say 'sp set 2 RES', ->
+      say 'sp set 2 RES + all good', ->
         it 'replies with the update incident', ->
           expect(hubotResponse()).to.eql '[1y9p5smwzhyf - critical] {component1}' +
           ' : Data Layer Migration - scheduled\n' +
@@ -210,7 +210,6 @@ describe 'statuspage script test', ->
         a = nock('https://api.statuspage.io')
         .put("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/incidents/2.json")
         .reply(200, require('./fixtures/incident_update-ok.json'))
-      
       say 'sp 2 is none', ->
         it 'replies with the update incident', ->
           expect(hubotResponse()).to.eql '[1y9p5smwzhyf - critical] {component1}' +
@@ -477,11 +476,10 @@ describe 'statuspage script test', ->
   describe 'update the status of a component', ->
     context 'when everything goes right', ->
       beforeEach ->
-        room.robot.brain.data.statuspage = { }
-        room.robot.brain.data.statuspage.components = { }
+        room.robot.brain.data.statuspage.components = { 'component1': 1 }
         a = nock('https://api.statuspage.io')
-        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components")
-        .reply(200, require('./fixtures/component_list-ok.json'))
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/1")
+        .reply(200, require('./fixtures/component_detail_1-ok.json'))
         .put("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/1")
         .reply(200, require('./fixtures/component_detail_1-ok.json'))
       say 'sp comp component1 is deg', ->
@@ -522,10 +520,56 @@ describe 'statuspage script test', ->
         .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components")
         .reply(200, require('./fixtures/component_list-ok.json'))
         .put("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/1")
-        .reply(500,'internal server error')
+        .reply(500, 'internal server error')
       say 'sp comp component1 is maintenance', ->
         it 'replies with an accurate error', ->
-          expect(hubotResponse()).to.eql 'Unable to update SyntaxError: Unexpected token i in JSON at position 0'
+          expect(hubotResponse()).to.match /Unable to update SyntaxError.*/
 
 
 
+#------------------------------------------------------------------------------
+  describe 'list available templates', ->
+    beforeEach ->
+      room.robot.brain.data = {
+        'statuspage': {
+          'components': { }
+        }
+      }
+
+    context 'when everything is right', ->
+      beforeEach ->
+        a = nock('https://api.statuspage.io')
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/incident_templates")
+        .reply(200, require('./fixtures/template_list-ok.json'))
+      say 'sp t', ->
+        it 'replies with the list of templates', ->
+          expect(hubotResponse()).to.eql '[stemplatename] templatetitle'
+      say 'sp t templatename', ->
+        it 'replies with the list of templates', ->
+          expect(hubotResponse()).to.eql '[stemplatename] templatetitle : template body'
+
+#---
+    context 'when something is wrong because of the server', ->
+      beforeEach ->
+        a = nock('https://api.statuspage.io')
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/incident_templates")
+        .reply(404, require('./fixtures/incident_ko.json'))
+      say 'sp t', ->
+        it 'replies with the error message', ->
+          expect(hubotResponse()).to.eql 'Error: 404 Incident not found'
+    context 'when there is no templates', ->
+      beforeEach ->
+        a = nock('https://api.statuspage.io')
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/incident_templates")
+        .reply(404, require('./fixtures/template_list-empty.json'))
+      say 'sp t', ->
+        it 'replies with a clear message', ->
+          expect(hubotResponse()).to.eql 'Error: no template found'
+    context 'when there is no matching template', ->
+      beforeEach ->
+        a = nock('https://api.statuspage.io')
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/incident_templates")
+        .reply(404, require('./fixtures/template_list-ok.json'))
+      say 'sp t oazihdozaihd', ->
+        it 'replies with a clear message', ->
+          expect(hubotResponse()).to.eql 'Error: no matching template found'

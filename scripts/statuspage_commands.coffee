@@ -84,8 +84,6 @@ module.exports = (robot) ->
         Object.assign(comp, d)
       payload.components = comp
       @robot.emit 'status_create', payload
-    .catch (e) ->
-      res.send "#{e}"
 
 #   hubot sp main[tenance] - give the ongoing maintenance
   robot.respond /sp(?:\s*) main(tenance)?/, 'status_maintenance', (res) ->
@@ -171,7 +169,7 @@ module.exports = (robot) ->
     res.finish()
 
   # hubot sp t[emplates] [template_name] - list all available template, filtered by templatename
-  robot.respond /sp(?:\s*) t(?:emplate)? ?(.*)?$/, 'status_component', (res) ->
+  robot.respond /sp(?:\s*) t(?:emplates)? ?(.*)?$/, 'status_component', (res) ->
     [_, name] = res.match
     if name?
       statuspage.getTemplatesByName(name)
@@ -200,25 +198,26 @@ module.exports = (robot) ->
     if status.toUpperCase().indexOf('OP') >= 0
       status = 'operational'
     else if status.toUpperCase().indexOf('DEG') >= 0
-      status = 'degraded'
+      status = 'degraded_performance'
     else if status.toUpperCase().indexOf('PART') >= 0
       status = 'partial_outage'
     else if status.toUpperCase().indexOf('MAJ') >= 0
       status = 'major_outage'
     else if status.toUpperCase().indexOf('MAIN') >= 0
-      status = 'maintenance'
+      status = 'under_maintenance'
     components = components_string.split(',')
     component_ids = components.map (component) ->
-      statuspage.getComponentByName(component,false)
+      statuspage.getComponentByName(component, false)
     Promise.all(component_ids)
     .then (data) ->
-      update = { status: status }
       updates = []
       for component in data
-        updates.push statuspage.updateComponent(component.id, update)
+        component.status = status
+        component_data = { component: { status: status } }
+        updates.push statuspage.updateComponent(component.id, component_data)
       Promise.all(updates)
-      .then () ->
-        res.send "Update sent"
+      .then ->
+        res.send 'Update sent'
     .catch (e) ->
       res.send "Unable to update #{e}"
       res.finish()
