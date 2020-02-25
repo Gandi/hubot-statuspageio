@@ -13,7 +13,8 @@
 #   hubot sp inc <incident_id> - give the details about an incident
 #   hubot sp main[tenance] - give the ongoing maintenance
 #   hubot sp c[omp] [comp_name] - get a component or list them all
-#
+#   hubot sp co?m?p? <comp_name> is <op|deg|part|maj|main|> - change the status of a component
+#   hubot sp t[emplates] [template_name] - list all available template, filtered by templatename
 #   hubot sp new <template_name> on <component:status,component:status...> - create new status using template_name on component(s)
 #
 #   hubot sp set <incident_id> <id|mon|res> [comment] update a status

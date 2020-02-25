@@ -19,6 +19,8 @@ sp <incident_id> + comment - add a comment to an incident
 sp <incident_id> is <none,minor,major,critical> - set the impact of an inciden
 sp [inc] - give the ongoing incidents
 sp c[omp] [comp_name] - get a component or list them all
+sp c[omp] <comp_name,comp_name> is op|maj|min|main - set a component to a given state
+sp t[emplates] [name] - get a list of templates, filter with names
 sp inc <incident_id> - give the details about an incident
 sp main[tenance] - give the ongoing maintenance
 sp new <template_name> on <component:status,component:status...> - create new status using template_name on component(s)

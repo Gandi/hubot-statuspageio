@@ -1,5 +1,8 @@
 Hubot-statuspage Changelog
 ==========================
+### 1.0.6 - 2020-02-25
+- add component updates, fix tests
+
 ### 1.0.5 - 2019-12-13
 - add webhook support
 
