@@ -207,14 +207,20 @@ module.exports = (robot) ->
       status = 'under_maintenance'
     components = components_string.split(',')
     component_ids = components.map (component) ->
-      statuspage.getComponentByName(component, false)
+      statuspage.getComponentByName(component)
     Promise.all(component_ids)
     .then (data) ->
       updates = []
       for component in data
         component.status = status
         component_data = { component: { status: status } }
-        updates.push statuspage.updateComponent(component.id, component_data)
+        if component.group
+          Promise.all(statuspage.getComponentRecursive(component.id))
+          .then (sub_components) ->
+            for sub_component in sub_components
+              updates.push statuspage.updateComponent(sub_component.id, component_data)
+        else
+          updates.push statuspage.updateComponent(component.id, component_data)
       Promise.all(updates)
       .then ->
         res.send 'Update sent'

@@ -482,6 +482,16 @@ describe 'statuspage script test', ->
         .reply(200, require('./fixtures/component_detail_1-ok.json'))
         .put("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/1")
         .reply(200, require('./fixtures/component_detail_1-ok.json'))
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components")
+        .reply(200, require('./fixtures/component_list-ok.json'))
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/2")
+        .reply(200, require('./fixtures/component_detail_nested-ok.json'))
+        .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/3")
+        .reply(200, require('./fixtures/component_detail_3-ok.json'))
+        .put("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/2")
+        .reply(200, require('./fixtures/component_detail_1-ok.json'))
+        .put("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/3")
+        .reply(200, require('./fixtures/component_detail_1-ok.json'))
       say 'sp comp component1 is deg', ->
         it 'replies with a confirmation', ->
           expect(hubotResponse()).to.eql 'Update sent'
@@ -494,7 +504,7 @@ describe 'statuspage script test', ->
       say 'sp comp component1 is maj', ->
         it 'replies with a confirmation', ->
           expect(hubotResponse()).to.eql 'Update sent'
-      say 'sp comp component1 is maintenance', ->
+      say 'sp comp component2 is maintenance', ->
         it 'replies with a confirmation', ->
           expect(hubotResponse()).to.eql 'Update sent'
 #---

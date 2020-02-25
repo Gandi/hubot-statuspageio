@@ -66,7 +66,6 @@ class StatusPage
         req.on 'error', (error) ->
           err "#{error.code} #{error.message}"
         if method is 'PUT' or method is 'POST'
-          console.log body
           req.write body
         req.end()
       else
