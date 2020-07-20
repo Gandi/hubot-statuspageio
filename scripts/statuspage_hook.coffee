@@ -28,8 +28,8 @@ module.exports = (robot) ->
     robot.router.post statusEndpoint, (req, res) ->
       if req.body?
         statuspage.parseWebhook(req.body, robot.adapterName)
-        .then (message) ->
-          robot.messageRoom statusAnnounceRoom, message
+        .then (data) ->
+          robot.messageRoom statusAnnounceRoom, data
           res.status(200).end()
         .catch (e) ->
           robot.logger.error "[statuspage] Invalid hook payload from #{req.ip}"

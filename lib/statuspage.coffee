@@ -70,21 +70,19 @@ class StatusPage
         req.end()
       else
         err 'Error: STATUSPAGE_API_KEY is not set in your environment.'
+
   parseWebhook: (message, adapter) ->
     new Promise (res, err) =>
-      @robot.logger.debug message
-      try
-        if message?.incident?
-          res @printIncident(message.incident, false, adapter)
-        else if message?.component?
-          res @printComponent(message.component, false, adapter)
-        else
-          throw new Error('unsuported format, no incident/component element found')
-      catch e
-        @robot.logger.error 'unable to parse message received via webhook'
-        @robot.logger.error message
-        @robot.logger.error e
-        err e
+      if message?.incident?.id?
+        @getIncident(message.incident.id)
+        .then (data) =>
+          res @printIncident(data, false, adapter)
+      else if message?.component?.id?
+        @getComponent(message.component.id)
+        .then (data) =>
+          res @printComponent(data, false, adapter)
+      else
+        err 'Error: invalid payload received'
 
   getTemplatesByName: (name) ->
     new Promise (res, err) =>
@@ -199,7 +197,7 @@ class StatusPage
     return "[#{template.name}] #{template.title}"
 
   printComponent: (comp, full = false, adapterName = 'irc') ->
-    name = if comp.name? then comp.name else 'unknown'
+    name = comp.name
     if comp.status?
       status = @colorer(
         adapterName
@@ -213,32 +211,26 @@ class StatusPage
     return "#{status} #{name}#{desc}#{id}"
 
   printIncident: (inc, full = false, adapterName = 'irc') ->
-    colored_id = if inc.id?
+    colored_id =
       @colorer(
         adapterName
         inc.status
         inc.id
       )
-    else
-      'unknown_id'
 
     @logger.debug inc
-    colored_impact = if inc.impact?
+    colored_impact =
       @colorer(
         adapterName
         inc.impact
         inc.impact
       )
-    else
-      'unknown_impact'
-    affected_component = if inc.components?
+    affected_component =
       '{' + (inc.components.map (c) =>
         @colorer(adapterName, c.status, c.name)
       .join(', ')) + '}'
-    else
-      ''
-    name = if inc.name? then inc.name else 'unknown'
-    status = if inc.status? then inc.status else ''
+    name = inc.name
+    status = inc.status
     result = "[#{colored_id} - #{colored_impact}] #{affected_component} : #{name} \
 - #{status}"
     if full

@@ -33,6 +33,7 @@ describe 'statuspage_hook module', ->
 
   beforeEach ->
     process.env.STATUSPAGE_API_KEY = 'xxx'
+    process.env.STATUSPAGE_PAGE_ID = 'xxx'
     process.env.STATUSPAGE_SCHEDULE_ID = '42'
     process.env.STATUSPAGE_ANNOUNCE_ROOM = '#dev'
     process.env.STATUSPAGE_ENDPOINT = '/test_hook'
@@ -40,7 +41,11 @@ describe 'statuspage_hook module', ->
     process.env.PORT = 8089
     room = helper.createRoom()
     room.robot.adapterName = 'console'
-
+    a = nock('https://api.statuspage.io')
+    .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/components/1")
+    .reply(200, require('./fixtures/component_detail_1-ok.json'))
+    .get("/v1/pages/#{process.env.STATUSPAGE_PAGE_ID}/incidents/yyyyyyyyyyy")
+    .reply(200, require('./fixtures/incident_detail-ok.json'))
     room.robot.brain.userForId 'user', {
       name: 'user'
     }
@@ -66,7 +71,7 @@ describe 'statuspage_hook module', ->
   context 'webhook receive a component update', ->
 
     it 'should react', ->
-      expected = '[operational] Some Component'
+      expected = '[operational] component1'
       statuspage = new StatusPage room.robot
       statuspage.parseWebhook(
         require('./fixtures/webhook_component-ok.json'),
@@ -78,7 +83,7 @@ describe 'statuspage_hook module', ->
   context 'webhook receive a incident update', ->
 
     it 'should react', ->
-      expected = '[lbkhbwn21v5q - critical]  : Virginia Is Down - monitoring'
+      expected = '[yyyyyyyyyyy - critical] {component1} : Data Layer Migration - scheduled'
       statuspage = new StatusPage room.robot
       statuspage.parseWebhook(
         require('./fixtures/webhook_incident-ok.json'),
@@ -88,58 +93,24 @@ describe 'statuspage_hook module', ->
 
 # -------------------------------------------------------------------------------------------------
   context 'webhook receive a buggy component update', ->
-    beforeEach ->
-      room.robot.logger = sinon.spy()
-      room.robot.logger.debug = sinon.spy()
-      room.robot.logger.error = sinon.spy()
-  
     it 'should react', ->
-      expected = '[operational] unknown'
+      expected = 'Error: invalid payload received'
       statuspage = new StatusPage room.robot
       statuspage.parseWebhook(
         require('./fixtures/webhook_component-ko.json'),
         'console'
-      ).then (announce) ->
+      ).catch (announce) ->
         expect(announce).to.eql expected
-        expect(room.robot.logger.error)
-          .callCount 0
 
 # -------------------------------------------------------------------------------------------------
   context 'webhook receive a buggy incident update', ->
-    beforeEach ->
-      room.robot.logger = sinon.spy()
-      room.robot.logger.debug = sinon.spy()
-      room.robot.logger.error = sinon.spy()
-
     it 'should react', ->
-      expected = '[unknown_id - unknown_impact]  : unknown - '
       statuspage = new StatusPage room.robot
       statuspage.parseWebhook(
         require('./fixtures/webhook_incident-ko.json'),
         'console'
-      ).then (announce) ->
-        expect(announce).to.eql expected
-        expect(room.robot.logger.error)
-          .callCount 0
-
-# -------------------------------------------------------------------------------------------------
-  context 'webhook receive a buggy update', ->
-    beforeEach ->
-      room.robot.logger = sinon.spy()
-      room.robot.logger.debug = sinon.spy()
-      room.robot.logger.error = sinon.spy()
-
-    it 'should react', ->
-      expected = 'unsuported format, no incident/component element found'
-      statuspage = new StatusPage room.robot
-      statuspage.parseWebhook(
-        'ko!',
-        'console'
-      ).catch (announce) ->
-        expect(announce.message).to.eql expected
-        expect(room.robot.logger.error)
-          .callCount 3
-
+      ).catch (error) ->
+        expect(error).to.eql 'Error: invalid payload received'
 # ---------------------------------------------------------------------------------------------
   context 'test the http responses', ->
     beforeEach ->
@@ -165,7 +136,7 @@ describe 'statuspage_hook module', ->
         req.end()
       it 'responds with status 422', ->
         expect(room.robot.logger.error)
-          .callCount 4
+          .callCount 1
         expect(@response.statusCode).to.equal 422
 
     context 'with valid payload', ->

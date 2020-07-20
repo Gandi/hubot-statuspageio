@@ -1,5 +1,8 @@
 Hubot-statuspage Changelog
 ==========================
+### 1.0.7 - 2020-07-20
+- webhook no longer trust the data sent, query API for given ID.
+
 ### 1.0.6 - 2020-02-25
 - add component updates, fix tests
 
