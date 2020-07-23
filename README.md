@@ -7,10 +7,11 @@ Configuration
 ---------------
 
     # STATUSPAGE_API_KEY v2 configuration vars
-    export STATUSPAGE_API_KEY=""
-    export STATUSPAGE_PAGE_ID=""
-    export STATUSPAGE_ANNOUNCE_ROOM=""
-    export STATUSPAGE_ENDPOINT=""
+    export STATUSPAGE_API_KEY="" # statuspage issued api key
+    export STATUSPAGE_PAGE_ID="" # page id as visible in page url
+    export STATUSPAGE_ANNOUNCE_ROOM="" # where to announce change on status
+    export STATUSPAGE_ENDPOINT="" # webhook endpoint to receive notification 
+    export STATUSPAGE_CUSTOM_EMIT = "" # action to trigger when a notification is received
 
 Usage
 --------

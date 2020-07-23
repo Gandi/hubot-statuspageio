@@ -37,7 +37,7 @@ describe 'statuspage_hook module', ->
     process.env.STATUSPAGE_SCHEDULE_ID = '42'
     process.env.STATUSPAGE_ANNOUNCE_ROOM = '#dev'
     process.env.STATUSPAGE_ENDPOINT = '/test_hook'
-    process.env.STATUSPAGE_CUSTOM_ACTION_FILE = 'test/fixtures/custom_action.json'
+    process.env.STATUSPAGE_CUSTOM_EMIT = 'test'
     process.env.PORT = 8089
     room = helper.createRoom()
     room.robot.adapterName = 'console'
@@ -71,7 +71,7 @@ describe 'statuspage_hook module', ->
   context 'webhook receive a component update', ->
 
     it 'should react', ->
-      expected = '[operational] component1'
+      expected = require('./fixtures/component_detail_1-ok.json')
       statuspage = new StatusPage room.robot
       statuspage.parseWebhook(
         require('./fixtures/webhook_component-ok.json'),
@@ -83,7 +83,7 @@ describe 'statuspage_hook module', ->
   context 'webhook receive a incident update', ->
 
     it 'should react', ->
-      expected = '[yyyyyyyyyyy - critical] {component1} : Data Layer Migration - scheduled'
+      expected = require './fixtures/incident_detail-ok.json'
       statuspage = new StatusPage room.robot
       statuspage.parseWebhook(
         require('./fixtures/webhook_incident-ok.json'),
@@ -117,6 +117,7 @@ describe 'statuspage_hook module', ->
       room.robot.logger = sinon.spy()
       room.robot.logger.debug = sinon.spy()
       room.robot.logger.error = sinon.spy()
+      room.robot.emit = sinon.spy()
 
     context 'with invalid payload', ->
       beforeEach (done) ->
@@ -139,7 +140,7 @@ describe 'statuspage_hook module', ->
           .callCount 1
         expect(@response.statusCode).to.equal 422
 
-    context 'with valid payload', ->
+    context 'with valid component payload', ->
       beforeEach (done) ->
         do nock.enableNetConnect
         options = {
@@ -158,4 +159,29 @@ describe 'statuspage_hook module', ->
       it 'responds with status 200', ->
         expect(room.robot.logger.error)
           .callCount 0
+        expect(room.robot.emit)
+          .callCount 1
+        expect(@response.statusCode).to.equal 200
+
+    context 'with valid incident payload', ->
+      beforeEach (done) ->
+        do nock.enableNetConnect
+        options = {
+          host: 'localhost',
+          port: process.env.PORT,
+          path: process.env.STATUSPAGE_ENDPOINT,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+        data = require('./fixtures/webhook_incident-ok.json')
+        req = http.request options, (@response) => done()
+        req.write(JSON.stringify(data))
+        req.end()
+      it 'responds with status 200', ->
+        expect(room.robot.logger.error)
+          .callCount 0
+        expect(room.robot.emit)
+          .callCount 1
         expect(@response.statusCode).to.equal 200

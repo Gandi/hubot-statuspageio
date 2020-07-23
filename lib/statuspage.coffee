@@ -75,12 +75,12 @@ class StatusPage
     new Promise (res, err) =>
       if message?.incident?.id?
         @getIncident(message.incident.id)
-        .then (data) =>
-          res @printIncident(data, false, adapter)
+        .then (data) ->
+          res data
       else if message?.component?.id?
         @getComponent(message.component.id)
-        .then (data) =>
-          res @printComponent(data, false, adapter)
+        .then (data) ->
+          res data
       else
         err 'Error: invalid payload received'
 
@@ -218,7 +218,6 @@ class StatusPage
         inc.id
       )
 
-    @logger.debug inc
     colored_impact =
       @colorer(
         adapterName
