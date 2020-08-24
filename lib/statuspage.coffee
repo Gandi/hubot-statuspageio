@@ -246,7 +246,22 @@ class StatusPage
         colors[color](text)
       else
         text
-
+    emoji: (text, color) ->
+      colors =  {
+        red:'🔴 ',
+        orange:'🟠 ',
+        yellow:'🟡 ',
+        lightgreen:'🟢 ',
+        green:'🟢 ',
+        royal:'🔵 ',
+        aqua:'🔵 ',
+        teal:'🔵 ',
+        cyan:'🔵 '
+      }
+      if colors[color]
+        colors[color] + text
+      else
+        text
     generic: (text, color) ->
       text
   }
@@ -263,9 +278,9 @@ class StatusPage
       under_maintenance: 'cyan'
       verifying: 'aqua'
       completed: 'royal'
-      minor: 'lightgreen'
-      major: 'red'
-      critical: 'brown'
+      minor: 'yellow'
+      major: 'orange'
+      critical: 'red'
       degraded_performance: 'yellow'
       partial_outage: 'yellow'
       major_outage: 'red'
