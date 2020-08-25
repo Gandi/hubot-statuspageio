@@ -28,8 +28,18 @@ describe 'statuspage_lib module', ->
       statuspage = new StatusPage room.robot, process.env
       result = statuspage.colorer('irc', 'degraded_performance', 'test')
       expect(result).to.eql '\u000308\u0002\u0002test\u0003'
-  context 'it set color but the color is unknonw', ->
+  context 'it set color but the color is unknown', ->
     it 'should color irc', ->
       statuspage = new StatusPage room.robot, process.env
       result = statuspage.colorer('irc', 'thiscolorisunknown', 'test')
+      expect(result).to.eql 'test'
+  context 'it set color', ->
+    it 'should color emoji', ->
+      statuspage = new StatusPage room.robot, process.env
+      result = statuspage.colorer('emoji', 'degraded_performance', 'test')
+      expect(result).to.eql '🟡 test'
+  context 'it set color but the color is unknown', ->
+    it 'should color emoji', ->
+      statuspage = new StatusPage room.robot, process.env
+      result = statuspage.colorer('emoji', 'thiscolorisunknown', 'test')
       expect(result).to.eql 'test'
